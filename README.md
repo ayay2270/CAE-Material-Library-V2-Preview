@@ -16,7 +16,7 @@ Original repository: [ayay2270/CAE-Material-Library](https://github.com/ayay2270
 
 Source branch: [`concepts/table-workspace-v2`](https://github.com/ayay2270/CAE-Material-Library/tree/concepts/table-workspace-v2)
 
-Copied source commit: `e3685eb3087c3daddda76880b9a422265b6bf324`.
+Copied source commit: `d7a25a14963bc81cddce86673fecd27b7fea4478`.
 Only this preview's README, Vite base path, and Pages workflow differ from that snapshot.
 No application code, engineering values, or calculations were changed for deployment.
 
