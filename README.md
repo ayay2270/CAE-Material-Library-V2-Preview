@@ -16,7 +16,7 @@ Original repository: [ayay2270/CAE-Material-Library](https://github.com/ayay2270
 
 Source branch: [`concepts/table-workspace-v2`](https://github.com/ayay2270/CAE-Material-Library/tree/concepts/table-workspace-v2)
 
-Copied source commit: `d7a25a14963bc81cddce86673fecd27b7fea4478`.
+Copied source commit: `dc740bb6860064eb0fb4ecb7abd81154903421c8`.
 Only this preview's README, Vite base path, and Pages workflow differ from that snapshot.
 No application code, engineering values, or calculations were changed for deployment.
 
@@ -67,6 +67,8 @@ The original repository's branches, workflow, and production deployment remain s
   The separate curve CSV contains all numerical points in base units.
 - Source, Notes, and history entries retain their existing text and engineering meaning.
 - The Lenovo logo is `src/assets/lenovo-logo.png`.
+- The header uses a silver metal sheet photograph, `src/assets/material-metal-sheet.jpg`.
+  Photo credit and source are in `src/assets/CREDITS.md` and the 使用說明 dialog.
 - No ETAN formula was introduced. `src/lib/etan.ts` retains the existing placeholder.
 - Material data is stored in `cae-material-library:v1`; column preferences use
   `cae-material-library:columns:v1`; category/source indexes use
