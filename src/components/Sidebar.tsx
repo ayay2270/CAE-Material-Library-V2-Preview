@@ -32,6 +32,9 @@ export function Sidebar({
     { id: 'map', label: 'Material Map', icon: MapIcon },
     { id: 'etan', label: 'ETAN 計算', icon: CalcIcon },
   ] as const;
+  const engineeringTools = [
+    { id: 'density-tuner', label: 'Density Tuner', icon: CalcIcon },
+  ] as const;
   return (
     <aside className="workspace-sidebar" aria-label="工作區與材料索引">
       <nav className="sidebar-workspace" aria-label="Workspace">
@@ -50,6 +53,20 @@ export function Sidebar({
             {page.id === 'compare' && selectedCount > 0 && (
               <b>{selectedCount}</b>
             )}
+          </button>
+        ))}
+      </nav>
+      <nav className="sidebar-engineering-tools" aria-label="Engineering Tools">
+        <h2>Engineering Tools</h2>
+        {engineeringTools.map((tool) => (
+          <button
+            key={tool.id}
+            className={view === tool.id ? 'active' : ''}
+            aria-current={view === tool.id ? 'page' : undefined}
+            onClick={() => onNavigate(tool.id)}
+          >
+            <tool.icon size={17} />
+            <span>{tool.label}</span>
           </button>
         ))}
       </nav>
@@ -115,7 +132,7 @@ export function Sidebar({
       <footer className="sidebar-footer">
         <GridIcon size={18} />
         <div>
-          <b>{pages.find((page) => page.id === view)?.label}</b>
+          <b>{[...pages, ...engineeringTools].find((page) => page.id === view)?.label}</b>
           <span>{materials.length} 筆材料</span>
         </div>
       </footer>

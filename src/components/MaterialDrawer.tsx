@@ -6,6 +6,7 @@ import { formatDateLong, formatValue, unitFor } from '../lib/format';
 import type { UnitPrefs } from '../lib/format';
 import { Modal } from './Modal';
 import { StressStrainSection } from './StressStrainSection';
+import { EtanPanel } from './EtanPanel';
 import { EditIcon, TrashIcon } from './icons';
 
 interface Props {
@@ -64,6 +65,7 @@ export function MaterialDrawer({ material: m, units, onClose, onEdit, onDelete, 
 
       <div role="tabpanel">
         {tab === 'props' && (
+          <>
           <dl className="prop-grid">
             {PROPS.map((p) => {
               const v = m[p.key];
@@ -81,6 +83,8 @@ export function MaterialDrawer({ material: m, units, onClose, onEdit, onDelete, 
               );
             })}
           </dl>
+          <EtanPanel key={m.id} material={m} />
+          </>
         )}
 
         {tab === 'curve' && <StressStrainSection key={m.id} material={m} units={units} onSave={onSaveCurve} />}

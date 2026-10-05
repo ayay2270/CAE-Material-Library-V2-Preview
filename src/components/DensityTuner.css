@@ -1,0 +1,78 @@
+.workspace-content > .density-tuner-page {
+  padding: 24px 28px;
+  overflow: auto;
+  gap: 16px;
+}
+.density-tuner-page .page-head {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.density-tuner-panel {
+  width: 100%;
+  max-width: 760px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.density-tuner-inputs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.density-tuner-field label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.density-tuner-control {
+  display: flex;
+  gap: 6px;
+}
+.density-tuner-control input, .density-tuner-control select {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.density-tuner-control input {
+  width: 100%;
+  min-width: 0;
+  font-family: var(--mono);
+}
+.density-tuner-control select { flex: none; }
+.density-tuner-control input[aria-invalid="true"] { border-color: var(--red-dark); }
+.density-tuner-error {
+  display: block;
+  margin: 4px 0 0;
+  color: var(--red-dark);
+  font-size: 12px;
+}
+.density-tuner-results {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px 28px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: var(--head-bg);
+  border: 1px solid var(--line);
+}
+.density-tuner-results > div { display: flex; flex-direction: column; gap: 5px; }
+.density-tuner-results span { font-size: 12px; color: var(--ink-2); }
+.density-tuner-results b { font-family: var(--mono); font-size: 16px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.density-tuner-copy-row { display: flex; align-items: center; gap: 12px; }
+.density-tuner-recommended b { font-size: 22px; color: var(--workspace-blue); }
+.density-tuner-expected b { color: var(--green); }
+.density-tuner-formula, .density-tuner-copy-status { margin: 12px 0 0; font-size: 12px; color: var(--ink-2); }
+.density-tuner-formula { color: var(--muted); }
+@media (max-width: 1100px) {
+  .density-tuner-inputs { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .workspace-content > .density-tuner-page { padding: 16px 12px; }
+  .density-tuner-panel { padding: 14px; }
+}

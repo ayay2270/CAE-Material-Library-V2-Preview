@@ -21,6 +21,7 @@ import { MaterialForm } from './components/MaterialForm';
 import { ComparePage } from './components/ComparePage';
 import { MaterialMap } from './components/MaterialMap';
 import { EtanPage } from './components/EtanPage';
+import { DensityTuner } from './components/DensityTuner';
 import {
   ConfirmDelete,
   HelpDialog,
@@ -236,6 +237,8 @@ export function App() {
           )}
 
           {view === 'etan' && <EtanPage materials={materials} />}
+
+          {view === 'density-tuner' && <DensityTuner />}
 
           {view === 'map' && (
             <MaterialMap
