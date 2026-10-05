@@ -27,6 +27,21 @@ const path = require('node:path');
     await page.getByRole('button', { name: 'Copy', exact: true }).click();
     await page.getByText('Copied.', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), '4.453E-8');
+    const quantity = page.getByLabel('Quantity', { exact: true });
+    assert.equal(await quantity.inputValue(), '1');
+    await quantity.fill('2');
+    assert.equal(await page.getByTestId('recommended-density').textContent(), '8.906E-8');
+    assert.equal(await page.getByTestId('expected-mass').textContent(), '6.260 kg');
+    await page.getByRole('button', { name: 'Copy', exact: true }).click();
+    await page.getByText('Copied.', { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), '8.906E-8');
+    for (const bad of ['', '0', '-1', '1.5', 'bad']) {
+      await quantity.fill(bad);
+      assert.equal(await quantity.getAttribute('aria-invalid'), 'true');
+      assert.equal(await page.getByTestId('recommended-density').textContent(), '—');
+      assert.equal(await page.getByRole('button', { name: 'Copy', exact: true }).isDisabled(), true);
+    }
+    await quantity.fill('1');
     const input = page.getByLabel('Current Density', { exact: true });
     for (const field of ['Current Density', 'Current Mass', 'Target Mass']) {
       const control = page.getByLabel(field, { exact: true });

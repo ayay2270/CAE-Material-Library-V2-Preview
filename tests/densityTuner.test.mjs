@@ -44,3 +44,12 @@ test('nonpositive inputs and unrepresentable calculations cannot produce results
   assert.equal(calculateDensity(1E308, 1, 'kg', 10, 'kg'), null);
   assert.equal(calculateDensity(1E-300, 1E300, 'kg', 1E-300, 'kg'), null);
 });
+
+test('quantity multiplies total target mass and validates whole-number counts', () => {
+  const result = calculateDensity(8.565E-10, 6.02E-5, 'ton', 3.13, 'kg', 2);
+  assert.equal(formatDensity(result.density), '8.906E-8');
+  assert.equal(result.expectedMass.toFixed(3), '6.260');
+  for (const quantity of [0, -1, 1.5, NaN, Infinity, 1E20]) {
+    assert.equal(calculateDensity(1E-9, 1, 'kg', 1, 'kg', quantity), null);
+  }
+});

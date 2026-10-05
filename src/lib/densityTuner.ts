@@ -17,10 +17,12 @@ export function calculateDensity(
   currentUnit: MassUnit,
   targetMass: number,
   targetUnit: MassUnit,
+  quantity = 1,
 ) {
   if (![currentDensity, currentMass, targetMass].every((n) => Number.isFinite(n) && n > 0)) return null;
+  if (!Number.isSafeInteger(quantity) || quantity <= 0) return null;
   const currentKg = currentMass * KG_PER_UNIT[currentUnit];
-  const targetKg = targetMass * KG_PER_UNIT[targetUnit];
+  const targetKg = targetMass * quantity * KG_PER_UNIT[targetUnit];
   const scaleFactor = targetKg / currentKg;
   const density = currentDensity * scaleFactor;
   const expectedMass = currentMass * (density / currentDensity)

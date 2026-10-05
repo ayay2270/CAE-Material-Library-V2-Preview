@@ -14,12 +14,15 @@ export function DensityTuner() {
   const [values, setValues] = useState({ density: '8.565E-10', currentMass: '6.02E-5', targetMass: '3.13' });
   const [currentUnit, setCurrentUnit] = useState<MassUnit>('ton');
   const [targetUnit, setTargetUnit] = useState<MassUnit>('kg');
+  const [quantityText, setQuantityText] = useState('1');
   const [copyStatus, setCopyStatus] = useState('');
   const density = parsePositiveValue(values.density);
   const currentMass = parsePositiveValue(values.currentMass);
   const targetMass = parsePositiveValue(values.targetMass);
-  const valid = density !== null && currentMass !== null && targetMass !== null;
-  const result = valid ? calculateDensity(density, currentMass, currentUnit, targetMass, targetUnit) : null;
+  const quantity = parsePositiveValue(quantityText);
+  const quantityValid = quantity !== null && Number.isSafeInteger(quantity);
+  const valid = density !== null && currentMass !== null && targetMass !== null && quantityValid;
+  const result = valid ? calculateDensity(density, currentMass, currentUnit, targetMass, targetUnit, quantity) : null;
   const recommended = result ? formatDensity(result.density) : '';
 
   const copy = async () => {
@@ -77,7 +80,27 @@ export function DensityTuner() {
               </div>
             );
           })}
+          <div className="density-tuner-field">
+            <label htmlFor="density-tuner-quantity">Quantity</label>
+            <div className="density-tuner-control">
+              <span className="density-tuner-multiply" aria-hidden="true">×</span>
+              <input
+                id="density-tuner-quantity"
+                type="text"
+                inputMode="numeric"
+                spellCheck={false}
+                value={quantityText}
+                aria-invalid={!quantityValid}
+                aria-describedby={!quantityValid ? 'density-tuner-quantity-error' : undefined}
+                onChange={(e) => { setQuantityText(e.target.value); setCopyStatus(''); }}
+              />
+            </div>
+            {!quantityValid && <span className="density-tuner-error" id="density-tuner-quantity-error">Enter a positive whole number.</span>}
+          </div>
         </div>
+        {targetMass !== null && quantityValid && Number.isFinite(targetMass * quantity) && (
+          <p className="density-tuner-total">Total Target Mass: {targetMass} × {quantity} = {(targetMass * quantity).toFixed(3)} {targetUnit}</p>
+        )}
         <div className="density-tuner-results" role="status" aria-live="polite" aria-atomic="true">
           <div className="density-tuner-recommended">
             <span>Recommended Density</span>
@@ -93,7 +116,7 @@ export function DensityTuner() {
         </div>
         {valid && !result && <p className="density-tuner-error" role="status">Values are outside the supported calculation range.</p>}
         {copyStatus && <p className="density-tuner-copy-status" role="status">{copyStatus}</p>}
-        <p className="density-tuner-formula">New Density = Current Density × Target Mass / Current Mass</p>
+        <p className="density-tuner-formula">New Density = Current Density × (Target Mass × Quantity) / Current Mass</p>
       </div>
     </main>
   );
