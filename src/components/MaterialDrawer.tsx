@@ -10,6 +10,7 @@ import { EtanPanel } from './EtanPanel';
 import { EditIcon, TrashIcon } from './icons';
 
 interface Props {
+  editable: boolean;
   material: Material;
   units: UnitPrefs;
   onClose: () => void;
@@ -28,7 +29,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 const ACTION_LABEL = { created: '建立', edited: '編輯', imported: '匯入' } as const;
 
-export function MaterialDrawer({ material: m, units, onClose, onEdit, onDelete, onSaveCurve }: Props) {
+export function MaterialDrawer({ material: m, units, onClose, onEdit, onDelete, onSaveCurve, editable }: Props) {
   const indexes = useIndexes();
   const [tab, setTab] = useState<Tab>('props');
 
@@ -44,14 +45,14 @@ export function MaterialDrawer({ material: m, units, onClose, onEdit, onDelete, 
       }
       footer={
         <>
-          <button className="btn danger-outline" onClick={onDelete}>
+          {editable && <button className="btn danger-outline" onClick={onDelete}>
             <TrashIcon /> 刪除
-          </button>
+          </button>}
           <span className="toolbar-spacer" />
           <button className="btn" onClick={onClose}>關閉</button>
-          <button className="btn primary" onClick={onEdit}>
+          {editable && <button className="btn primary" onClick={onEdit}>
             <EditIcon /> 編輯
-          </button>
+          </button>}
         </>
       }
     >
@@ -87,7 +88,7 @@ export function MaterialDrawer({ material: m, units, onClose, onEdit, onDelete, 
           </>
         )}
 
-        {tab === 'curve' && <StressStrainSection key={m.id} material={m} units={units} onSave={onSaveCurve} />}
+        {tab === 'curve' && <StressStrainSection key={m.id} material={m} units={units} onSave={onSaveCurve} editable={editable} />}
 
         {tab === 'source' && (
           <dl className="meta-grid">

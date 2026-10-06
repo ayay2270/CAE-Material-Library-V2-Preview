@@ -1,4 +1,4 @@
-import type { Material } from '../types';
+import type { Material } from '../src/types';
 
 type Row = Omit<Material, 'id' | 'history' | 'updatedAt' | 'notes'> & { at: string; notes?: string };
 

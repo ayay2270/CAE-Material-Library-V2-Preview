@@ -11,3 +11,6 @@ Thumbs.db
 coverage/
 __pycache__/
 *.pyc
+data/backups/
+src/data/*.tmp
+src/data/*.lock

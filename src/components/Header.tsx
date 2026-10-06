@@ -1,12 +1,17 @@
 import { HelpIcon, PlusIcon } from './icons';
 import logo from '../assets/lenovo-logo.png';
 import landscapeBackground from '../assets/header-mountain-lake.jpg';
+import type { ReactNode } from 'react';
 export function Header({
   onHelp,
   onAdd,
+  editable,
+  databaseStatus,
 }: {
   onHelp: () => void;
   onAdd: () => void;
+  editable: boolean;
+  databaseStatus?: ReactNode;
 }) {
   return (
     <header className="app-header">
@@ -21,12 +26,13 @@ export function Header({
         </div>
       </div>
       <div className="header-actions">
+        {databaseStatus}
         <button className="header-help" onClick={onHelp}>
           <HelpIcon size={17} /> 使用說明
         </button>
-        <button className="btn primary" onClick={onAdd}>
+        {editable && <button className="btn primary" onClick={onAdd}>
           <PlusIcon size={15} /> 新增材料
-        </button>
+        </button>}
       </div>
     </header>
   );

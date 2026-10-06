@@ -3,6 +3,9 @@ import type { Material, MaterialInput } from '../types';
 import { csvToMaterials, downloadCsv } from '../lib/csv';
 import { Modal } from './Modal';
 import { DownloadIcon, UploadIcon } from './icons';
+import { downloadJson } from '../lib/legacy';
+import { validateDatabase, type MasterDatabase } from '../lib/database-schema.mjs';
+import { LOCAL_EDITOR } from '../lib/masterDatabase';
 
 export function ConfirmDelete({ material, onConfirm, onClose }: { material: Material; onConfirm: () => void; onClose: () => void }) {
   return (
@@ -19,7 +22,7 @@ export function ConfirmDelete({ material, onConfirm, onClose }: { material: Mate
       }
     >
       <p>
-        <b>{material.name}</b> 及其歷史記錄將從此瀏覽器的材料庫中永久移除。如日後可能需要，請先匯出 CSV 備份。
+        <b>{material.name}</b> 及其歷史記錄將從目前草稿移除。按 Save Database 才會寫入 Git 主資料庫；寫入前可取消未儲存變更。
       </p>
     </Modal>
   );
@@ -31,19 +34,30 @@ export function ImportExportDialog({
   onImport,
   onReset,
   onClose,
+  editable,
+  database,
+  onRecover,
+  onLegacy,
 }: {
   materials: Material[];
   visibleRows: Material[];
   onImport: (rows: MaterialInput[]) => { added: number; updated: number; unchanged: number };
   onReset: () => void;
   onClose: () => void;
+  editable: boolean;
+  database: MasterDatabase;
+  onRecover: (value: unknown) => void;
+  onLegacy: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const recoveryRef = useRef<HTMLInputElement>(null);
+  const [pendingRecovery, setPendingRecovery] = useState<unknown>(null);
   const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string; details?: string[] } | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
 
   const onFile = async (file: File | undefined) => {
-    if (!file) return;
+    if (!file || !editable) return;
+    try {
     const text = await file.text();
     const { rows, errors } = csvToMaterials(text);
     if (rows.length === 0) {
@@ -53,10 +67,11 @@ export function ImportExportDialog({
     const r = onImport(rows);
     setMessage({
       kind: 'ok',
-      text: `已匯入 ${rows.length} 列：新增 ${r.added} 筆、更新 ${r.updated} 筆、未變更 ${r.unchanged} 筆（以 Material Name 比對）。`,
+      text: `已匯入草稿 ${rows.length} 列：新增 ${r.added} 筆、更新 ${r.updated} 筆、未變更 ${r.unchanged} 筆（以 Material Name 比對）。請按 Save Database 寫入資料庫。`,
       details: errors,
     });
     if (fileRef.current) fileRef.current.value = '';
+    } catch (error) { setMessage({ kind: 'err', text: error instanceof Error ? error.message : '無法讀取檔案。' }); }
   };
 
   return (
@@ -68,12 +83,13 @@ export function ImportExportDialog({
           <button className="btn" onClick={() => downloadCsv(materials)}>
             <DownloadIcon /> 匯出全部（{materials.length} 筆）
           </button>
+          <button className="btn" onClick={() => downloadJson(database, 'material-database.json')}>下載完整 JSON 備份</button>
           <button className="btn" onClick={() => downloadCsv(visibleRows, 'cae-materials-filtered.csv')} disabled={visibleRows.length === materials.length}>
             <DownloadIcon /> 匯出目前列表（{visibleRows.length} 筆）
           </button>
         </div>
       </section>
-      <section className="io-block">
+      {editable && <section className="io-block">
         <h3>匯入</h3>
         <p className="muted">
           請使用本工具匯出的檔案格式（欄位：Name、Category、各性質欄位、Source、Notes）。名稱相同的列會更新該材料，其餘新增；空白欄位維持「—」。
@@ -95,10 +111,23 @@ export function ImportExportDialog({
             )}
           </div>
         )}
-      </section>
-      <section className="io-block">
-        <h3>範例資料</h3>
-        <p className="muted">還原 11 筆範例材料。此動作會取代此瀏覽器中目前儲存的所有資料。</p>
+        <p className="muted small">變更先保留在記憶體中，請按頁首 Save Database。</p>
+        <input ref={recoveryRef} type="file" hidden accept=".json,application/json" onChange={async e => {
+          const file = e.target.files?.[0]; if (!file) return;
+          try { setPendingRecovery(validateDatabase(JSON.parse(await file.text()))); }
+          catch (error) { setPendingRecovery(null); setMessage({ kind: 'err', text: error instanceof Error ? error.message : 'JSON 檔案無法解析，未回復。' }); }
+          e.target.value = '';
+        }} />
+        <button className="btn" onClick={() => recoveryRef.current?.click()}>匯入完整 JSON 備份…</button>
+        {pendingRecovery !== null && <p>JSON 回復將取代目前草稿（包含 ID、歷史、曲線與索引）。<button className="btn danger" onClick={() => {
+          try { onRecover(pendingRecovery); setPendingRecovery(null); setMessage({ kind: 'ok', text: '已回復為草稿，請按 Save Database。' }); }
+          catch (error) { setMessage({ kind: 'err', text: error instanceof Error ? error.message : '資料無效，未回復。' }); }
+        }}>確認回復草稿</button> <button className="btn" onClick={() => setPendingRecovery(null)}>取消</button></p>}
+      </section>}
+      {!editable && <p className="muted">GitHub Pages = 唯讀資料庫檢視器。CSV／JSON 匯入、材料及索引編輯請使用本機 npm run dev。</p>}
+      {editable && <section className="io-block">
+        <h3>未儲存草稿</h3>
+        <p className="muted">取消未儲存變更，回到本次載入或最後成功 Save Database 的資料（包含分類／SOURCE）。</p>
         {confirmReset ? (
           <span className="inline-confirm">
             確定取代所有資料？{' '}
@@ -107,7 +136,7 @@ export function ImportExportDialog({
               onClick={() => {
                 onReset();
                 setConfirmReset(false);
-                setMessage({ kind: 'ok', text: '已還原範例資料。' });
+                setMessage({ kind: 'ok', text: '已取消未儲存變更。' });
               }}
             >
               確定取代
@@ -115,9 +144,10 @@ export function ImportExportDialog({
             <button className="btn" onClick={() => setConfirmReset(false)}>取消</button>
           </span>
         ) : (
-          <button className="btn" onClick={() => setConfirmReset(true)}>還原範例資料…</button>
+          <button className="btn" onClick={() => setConfirmReset(true)}>取消未儲存變更…</button>
         )}
-      </section>
+      </section>}
+      <section className="io-block"><button className="btn" onClick={onLegacy}>檢查舊瀏覽器資料</button></section>
     </Modal>
   );
 }
@@ -127,12 +157,12 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
     <Modal title="使用說明" width={520} onClose={onClose}>
       <ul className="help-list">
         <li><b>尋找材料</b>：用上方搜尋列（名稱、關鍵字、來源），或以「材料類別 / 來源 / 更新時間」篩選；點欄位標題可排序。</li>
-        <li><b>查看資料</b>：點選任一列開啟詳細資料（基本性質、材料曲線、來源與備註、歷史記錄），可在其中編輯或刪除。</li>
+        <li><b>查看資料</b>：點選任一列開啟詳細資料（基本性質、材料曲線、來源與備註、歷史記錄）；編輯與刪除僅限本機開發模式。</li>
         <li><b>欄位設定</b>：拖曳（或用 ▲▼ 按鈕）調整欄位順序，取消勾選即可隱藏；Material Name 固定顯示。設定會儲存在此瀏覽器。</li>
         <li><b>缺少的數值</b>顯示為「—」，不會當作 0。</li>
         <li><b>比較材料</b>：勾選 2 個以上材料，按「比較材料」，數量不限。</li>
         <li><b>材料地圖</b>：Density × Young's Modulus 的輔助圖，點選 ⓘ 了解如何閱讀。</li>
-        <li><b>資料儲存</b>：資料保存在此瀏覽器的 localStorage，請定期匯出 CSV 備份；清除網站資料會一併移除。</li>
+        <li><b>資料儲存</b>：Git 追蹤的 src/data/materials.json 是主資料庫。{LOCAL_EDITOR ? '編輯先保留為記憶體草稿，按 Save Database 寫入檔案，再手動 commit／push。' : 'GitHub Pages 只讀取已部署的 Git 版本，無法寫回資料庫。'} localStorage 只保存欄位偏好與舊資料通知已讀狀態。</li>
         <li><b>快捷鍵</b>：按 <kbd>/</kbd> 跳到搜尋列。</li>
       </ul>
       <p className="muted small">
