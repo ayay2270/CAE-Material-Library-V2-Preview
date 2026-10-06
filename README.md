@@ -28,6 +28,11 @@ No application code, engineering values, or calculations were changed for deploy
 - Column visibility, drag/arrow reordering, default restoration, and Density / Stress display units.
 - Add, edit, delete, detail drawer, source/notes/history, and localStorage persistence.
 - Material comparison, Density × Young's Modulus Material Map, and CSV import/export.
+- **來源檔案** (Edit → 加入來源檔案; shown in Detail → 來源與備註): add any number of source
+  documents per material, each with a type (Excel / PDF / 其他), a display name and a link or path.
+  The type follows the extension (`.xlsx`, `.pdf`) until you choose one. `https://` links open in a new tab;
+  network or local paths (`\\server\share\file.xlsx`) cannot be opened by a browser, so they get a
+  **複製路徑** button. Only the link or path is stored, never the file itself.
 - The existing 11 sample materials and the existing ETAN calculation placeholder.
 - Sidebar **編輯** controls to add or rename Material Category / Source index items,
   including unused items with a count of 0. Source renaming updates every referenced
@@ -66,10 +71,14 @@ The original repository's branches, workflow, and production deployment remain s
   and metadata in **Stress-Strain Curve JSON**; older CSV imports preserve saved curves.
   The separate curve CSV contains all numerical points in base units.
 - Source, Notes, and history entries retain their existing text and engineering meaning.
+- Source files are stored on the material as an optional `sourceFiles` list (older records simply have none).
+  Material CSV backups add a final **Source Files JSON** column; an import without that column leaves existing
+  source files untouched, and an invalid cell skips that row like an invalid curve does.
 - The Lenovo logo is `src/assets/lenovo-logo.png`.
 - The header uses a photographed Lake Tahoe panorama, `src/assets/header-mountain-lake.jpg`.
   Photo credit and source are in `src/assets/CREDITS.md` and the 使用說明 dialog.
 - No ETAN formula was introduced. `src/lib/etan.ts` retains the existing placeholder.
+- Tests: `node --test tests/*.test.mjs` (unit), and `tests/*.ui.cjs` against `npm run dev` (Playwright).
 - Material data is stored in `cae-material-library:v1`; column preferences use
   `cae-material-library:columns:v1`; category/source indexes use
   `cae-material-library:indexes:v1`. There is no backend. Export CSV before clearing browser site data.

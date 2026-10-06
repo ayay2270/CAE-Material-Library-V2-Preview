@@ -34,6 +34,17 @@ export interface StressStrainData {
   notes: string;
 }
 
+export type SourceFileKind = 'excel' | 'pdf' | 'other';
+
+/** A reference to the document a material's data came from. The file itself is not stored: only its link or path. */
+export interface SourceFile {
+  id: string;
+  kind: SourceFileKind;
+  name: string;
+  /** http(s) link (opens in the browser) or a network / local path (copied, not opened). May be empty. */
+  url: string;
+}
+
 export interface Material {
   id: string;
   name: string;
@@ -51,6 +62,8 @@ export interface Material {
   history: HistoryEntry[];
   /** Optional for backward compatibility with existing records and CSV files. */
   stressStrainCurve?: StressStrainData | null;
+  /** Optional for backward compatibility with existing records and CSV files. */
+  sourceFiles?: SourceFile[];
 }
 
 export type MaterialInput = Omit<Material, 'id' | 'updatedAt' | 'history'>;

@@ -4,6 +4,7 @@ import { PROPS } from './props';
 import { formatValue } from './format';
 import type { HistoryEntry, Material, MaterialInput, StressStrainData } from '../types';
 import { isStressStrainData } from './curveData';
+import { sourceFilesSignature } from './sourceFiles';
 import { changeIndex, deriveIndexes, INDEX_KEY, loadIndexes, persistTogether, type IndexKind } from './indexes';
 
 // Versioned key so a future schema change can migrate instead of clobber.
@@ -50,6 +51,7 @@ function describeChanges(before: Material, after: MaterialInput): string {
   }
   if (before.source !== after.source) changes.push('Source');
   if (before.notes !== after.notes) changes.push('備註');
+  if (after.sourceFiles !== undefined && sourceFilesSignature(before.sourceFiles) !== sourceFilesSignature(after.sourceFiles)) changes.push('來源檔案');
   if (after.stressStrainCurve !== undefined && JSON.stringify(before.stressStrainCurve ?? null) !== JSON.stringify(after.stressStrainCurve)) changes.push('Stress–strain curve');
   return changes.length ? changes.join('; ') : NO_CHANGES;
 }

@@ -2,6 +2,7 @@ import { CATEGORIES } from '../types';
 import type { Category, Material, MaterialInput } from '../types';
 import { PROPS } from './props';
 import { isStressStrainData } from './curveData';
+import { parseSourceFilesJson, sourceFilesToJson } from './sourceFiles';
 
 // Export always uses base units (t/mm³, MPa, %) regardless of display prefs.
 const HEADERS = [
@@ -12,6 +13,7 @@ const HEADERS = [
   'Notes',
   'Last Updated',
   'Stress-Strain Curve JSON',
+  'Source Files JSON',
 ];
 
 function esc(v: string): string {
@@ -30,6 +32,7 @@ export function toCsv(list: Material[]): string {
         m.notes,
         m.updatedAt,
         m.stressStrainCurve ? JSON.stringify(m.stressStrainCurve) : '',
+        sourceFilesToJson(m.sourceFiles),
       ]
         .map(esc)
         .join(','),
@@ -99,9 +102,11 @@ export function csvToMaterials(text: string): ImportResult {
   const nameIdx = col('name');
   if (nameIdx < 0) return { rows: [], errors: ['缺少必要的 "Name" 欄位。'] };
   const catIdx = col('category');
-  const srcIdx = col('source');
+  // 'Source Files JSON' also starts with "source", so it must not be mistaken for the Source column.
+  const srcIdx = header.findIndex((h) => h.startsWith('source') && h !== 'source files json');
   const notesIdx = col('notes');
   const curveIdx = col('stress-strain curve json');
+  const filesIdx = col('source files json');
   const propIdx = PROPS.map((p) => col(p.label.toLowerCase()));
 
   const rows: MaterialInput[] = [];
@@ -143,6 +148,14 @@ export function csvToMaterials(text: string): ImportResult {
         errors.push(`第 ${line} 行：Stress-Strain Curve JSON 無效，整列已略過以保護原資料。`);
         return;
       }
+    }
+    if (filesIdx >= 0 && r[filesIdx]?.trim()) {
+      const files = parseSourceFilesJson(r[filesIdx]);
+      if (!files) {
+        errors.push(`第 ${line} 行：Source Files JSON 無效，整列已略過以保護原資料。`);
+        return;
+      }
+      m.sourceFiles = files;
     }
     rows.push(m);
   });

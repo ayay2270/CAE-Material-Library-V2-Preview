@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useIndexes } from '../lib/indexes';
-import type { Category, Material, MaterialInput } from '../types';
+import type { Category, Material, MaterialInput, SourceFileKind } from '../types';
 import { PROPS } from '../lib/props';
+import { MAX_NAME, MAX_SOURCE_FILES, MAX_URL, SOURCE_KINDS, guessKind, newFileId, normalizeSourceFiles, webHref } from '../lib/sourceFiles';
 import { Modal } from './Modal';
+import { CloseIcon, PlusIcon } from './icons';
 
 interface Props {
   initial: Material | null; // null = new material
@@ -23,6 +25,9 @@ const RULES: Partial<Record<(typeof PROPS)[number]['key'], { min?: number; max?:
 
 const toText = (v: number | null) => (v === null ? '' : String(v));
 
+/** One editable row of 來源檔案. `kindSet` stops the automatic Excel/PDF guess once the user picked a type. */
+interface FileRow { id: string; kind: SourceFileKind; name: string; url: string; kindSet: boolean }
+
 export function MaterialForm({ initial, existing, onSave, onClose }: Props) {
   const indexes = useIndexes();
   const [name, setName] = useState(initial?.name ?? '');
@@ -32,7 +37,22 @@ export function MaterialForm({ initial, existing, onSave, onClose }: Props) {
   const [vals, setVals] = useState<Record<string, string>>(() =>
     Object.fromEntries(PROPS.map((p) => [p.key, toText(initial?.[p.key] ?? null)])),
   );
+  const [files, setFiles] = useState<FileRow[]>(() => (initial?.sourceFiles ?? []).map((f) => ({ ...f, kindSet: true })));
+  const [justAdded, setJustAdded] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+
+  const patchFile = (id: string, patch: Partial<FileRow>) => setFiles((rows) => rows.map((r) => {
+    if (r.id !== id) return r;
+    const next = { ...r, ...patch };
+    // Until the user chooses a type, follow the extension of the name or link (.xlsx → Excel, .pdf → PDF).
+    if (!next.kindSet && ('name' in patch || 'url' in patch)) next.kind = guessKind(next.name) ?? guessKind(next.url) ?? 'other';
+    return next;
+  }));
+  const addFile = () => {
+    const id = newFileId();
+    setFiles((rows) => [...rows, { id, kind: 'other', name: '', url: '', kindSet: false }]);
+    setJustAdded(id);
+  };
 
   const errors = useMemo(() => {
     const e: Record<string, string> = {};
@@ -61,6 +81,7 @@ export function MaterialForm({ initial, existing, onSave, onClose }: Props) {
       category,
       source: source.trim(),
       notes: notes.trim(),
+      sourceFiles: normalizeSourceFiles(files),
       density: null,
       youngsModulus: null,
       poissonRatio: null,
@@ -142,6 +163,24 @@ export function MaterialForm({ initial, existing, onSave, onClose }: Props) {
           <input list="material-source-options" value={source} onChange={(e) => setSource(e.target.value)} placeholder="例如：供應商資料表、網路、提供者姓名" />
           <datalist id="material-source-options">{indexes.sources.map(s => <option key={s} value={s}/>)}</datalist>
         </label>
+        <fieldset className="file-fieldset">
+          <legend>來源檔案 <small>（Excel / PDF 等來源文件的連結或路徑，可加入多筆）</small></legend>
+          {files.length === 0 && <p className="form-hint">沒有來源文件可略過。有的話按下方「加入來源檔案」。</p>}
+          {files.map((f, i) => (
+            <div className="file-row" key={f.id}>
+              <select aria-label={`來源檔案 ${i + 1} 類型`} value={f.kind} onChange={(e) => patchFile(f.id, { kind: e.target.value as SourceFileKind, kindSet: true })}>
+                {SOURCE_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+              </select>
+              <input aria-label={`來源檔案 ${i + 1} 名稱`} value={f.name} maxLength={MAX_NAME} autoFocus={f.id === justAdded}
+                onChange={(e) => patchFile(f.id, { name: e.target.value })} placeholder="顯示名稱，例如 EPE 96 材料測試報告.pdf" />
+              <button type="button" className="icon-btn danger" aria-label={`移除來源檔案 ${i + 1}`} title="移除" onClick={() => setFiles((rows) => rows.filter((r) => r.id !== f.id))}><CloseIcon /></button>
+              <input className="file-url" aria-label={`來源檔案 ${i + 1} 連結或路徑`} value={f.url} maxLength={MAX_URL} spellCheck={false}
+                onChange={(e) => patchFile(f.id, { url: e.target.value })} placeholder="https://… 連結，或 \\伺服器\資料夾\檔案.xlsx" />
+              {f.url.trim() !== '' && webHref(f.url) === null && <p className="form-hint file-note">不是 http(s) 連結：瀏覽器無法直接開啟，詳細頁會提供「複製路徑」。</p>}
+            </div>
+          ))}
+          <button type="button" className="btn small-btn" onClick={addFile} disabled={files.length >= MAX_SOURCE_FILES}><PlusIcon /> 加入來源檔案</button>
+        </fieldset>
         <label>
           <span>備註</span>
           <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="試驗條件、熱處理狀態、參考連結…" />

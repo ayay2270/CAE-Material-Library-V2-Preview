@@ -76,7 +76,7 @@ export function ImportExportDialog({
       <section className="io-block">
         <h3>匯入</h3>
         <p className="muted">
-          請使用本工具匯出的檔案格式（欄位：Name、Category、各性質欄位、Source、Notes）。名稱相同的列會更新該材料，其餘新增；空白欄位維持「—」。
+          請使用本工具匯出的檔案格式（欄位：Name、Category、各性質欄位、Source、Notes；曲線與來源檔案以 JSON 欄位保存）。名稱相同的列會更新該材料，其餘新增；空白欄位維持「—」。
         </p>
         <input ref={fileRef} type="file" accept=".csv,text/csv" hidden data-testid="csv-input" onChange={(e) => onFile(e.target.files?.[0])} />
         <button className="btn" onClick={() => fileRef.current?.click()}>
@@ -132,6 +132,7 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
         <li><b>缺少的數值</b>顯示為「—」，不會當作 0。</li>
         <li><b>比較材料</b>：勾選 2 個以上材料，按「比較材料」，數量不限。</li>
         <li><b>材料地圖</b>：Density × Young's Modulus 的輔助圖，點選 ⓘ 了解如何閱讀。</li>
+        <li><b>來源檔案</b>：在「編輯」中可為材料加入 Excel / PDF 等來源文件的連結或路徑（可多筆）。只記錄連結或路徑，不會儲存檔案本身；https 連結可直接開啟，網路磁碟路徑請用「複製路徑」。</li>
         <li><b>資料儲存</b>：資料保存在此瀏覽器的 localStorage，請定期匯出 CSV 備份；清除網站資料會一併移除。</li>
         <li><b>快捷鍵</b>：按 <kbd>/</kbd> 跳到搜尋列。</li>
       </ul>
