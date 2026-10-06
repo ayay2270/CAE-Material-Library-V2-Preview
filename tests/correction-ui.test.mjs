@@ -18,9 +18,9 @@ const result = await build({
     export { requestLocalEditing } from './src/lib/localEditing';
     export const library = () => renderToStaticMarkup(<App />);
     export const solver = (inputs, providedH) => renderToStaticMarkup(<SolverPlasticityResults inputs={inputs} providedH={providedH} />);
-    export const imports = (database, editable) => renderToStaticMarkup(<ImportExportDialog editable={editable} database={database} materials={database.materials} visibleRows={database.materials} onImport={()=>({added:0,updated:0,unchanged:0})} onReset={()=>{}} onRecover={()=>{}} onLegacy={()=>{}} onReadOnly={()=>{}} onClose={()=>{}} />);
+    export const imports = (database, editable, dirty = false) => renderToStaticMarkup(<ImportExportDialog editable={editable} dirty={dirty} database={database} materials={database.materials} visibleRows={database.materials} onImport={()=>({added:0,updated:0,unchanged:0})} onReset={()=>{}} onRecover={()=>{}} onLegacy={()=>{}} onReadOnly={()=>{}} onClose={()=>{}} />);
     export const drawer = material => renderToStaticMarkup(<MaterialDrawer editable={false} material={material} units={{density:'t/mm3',stress:'MPa'}} onClose={()=>{}} onEdit={()=>{}} onDelete={()=>{}} onSaveCurve={()=>null} />);
-    export const guidance = () => renderToStaticMarkup(<LocalEditingDialog onClose={()=>{}} />);
+    export const guidance = supported => renderToStaticMarkup(<LocalEditingDialog supported={supported} permissionNeeded={false} onConnect={()=>{}} onClose={()=>{}} />);
   `, resolveDir: fileURLToPath(new URL('../', import.meta.url)), loader: 'tsx' },
   bundle: true, write: false, platform: 'node', format: 'cjs', jsx: 'automatic',
   loader: { '.css': 'empty', '.png': 'dataurl', '.jpg': 'dataurl' },
@@ -50,7 +50,7 @@ test('no stored H renders calculated active H and its conversion source; invalid
 
 test('production library, detail and import dialog retain visible Add/Edit/Delete/Import controls', () => {
   const html = ui.library();
-  for (const text of ['新增材料', '編輯 SGCC', '刪除 SGCC', 'Local editing only', 'Actions']) assert.ok(html.includes(text), text);
+  for (const text of ['新增材料', '編輯 SGCC', '刪除 SGCC', '資料庫狀態', '尚未連結', 'Actions']) assert.ok(html.includes(text), text);
   assert.ok(!html.includes('Save Database</button>'));
   const imports = ui.imports(database, false);
   assert.ok(imports.includes('選擇 CSV 檔案'));
@@ -69,8 +69,10 @@ test('production editing requests only show guidance, leave database unchanged a
   }
   assert.equal(guidanceCount, 4);
   assert.equal(JSON.stringify(database), before);
-  const html = ui.guidance();
-  for (const text of ['This GitHub Pages version is read-only.', 'npm run dev', 'Save Database', 'src/data/materials.json', 'Then commit and push']) assert.ok(html.includes(text), text);
+  const html = ui.guidance(true);
+  for (const text of ['連結本機資料庫', 'Save Database', 'src/data/materials.json', 'GitHub Desktop Commit + Push']) assert.ok(html.includes(text), text);
+  assert.ok(!html.includes('npm run dev'));
+  assert.ok(ui.guidance(false).includes('此瀏覽器不支援直接編輯本機資料庫'));
 });
 
 test('ready local editor executes editing and CSV import actions without read-only guidance', () => {
@@ -79,4 +81,12 @@ test('ready local editor executes editing and CSV import actions without read-on
     ui.requestLocalEditing(true, () => calls++, () => assert.fail(`${action} must be available locally`));
   }
   assert.equal(calls, 4);
+});
+
+test('revoked file permission still allows exporting and discarding an unsaved draft', () => {
+  const html = ui.imports(database, false, true);
+  assert.ok(html.includes('下載完整 JSON 備份'));
+  assert.ok(html.includes('取消未儲存變更…'));
+  assert.ok(!html.includes('type="file"'), 'revoked permissions do not enable importing');
+  assert.ok(!ui.imports(database, false).includes('取消未儲存變更…'));
 });

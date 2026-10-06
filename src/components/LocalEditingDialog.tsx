@@ -1,12 +1,12 @@
 import { Modal } from './Modal';
+import { UNSUPPORTED_MESSAGE } from '../lib/browserDatabase';
 
-export function LocalEditingDialog({ onClose }: { onClose: () => void }) {
-  return <Modal title="Local editing only" onClose={onClose}>
-    <p>This GitHub Pages version is read-only.</p>
-    <p>To add, edit, delete or import materials, open the repository locally and run:</p>
-    <pre><code>npm run dev</code></pre>
-    <p>After editing, use <b>Save Database</b> to write changes to:</p>
-    <p><code>src/data/materials.json</code></p>
-    <p>Then commit and push the database update to GitHub.</p>
+export function LocalEditingDialog({ onClose, onConnect, supported, permissionNeeded }: { onClose: () => void; onConnect: () => void; supported: boolean; permissionNeeded: boolean }) {
+  return <Modal title="連結本機資料庫" onClose={onClose}>
+    {supported ? <>
+      <p>請先連結本機 Git 儲存庫的 <code>src/data/materials.json</code>，並授予瀏覽器讀寫權限，即可新增、編輯、刪除及匯入材料。</p>
+      <p>編輯後按 <b>Save Database</b> 儲存本機檔案，再使用 GitHub Desktop Commit + Push。網站不會自行推送資料。</p>
+      <button className="btn primary" onClick={onConnect}>{permissionNeeded ? '重新授權' : '連結本機資料庫'}</button>
+    </> : <p>{UNSUPPORTED_MESSAGE}</p>}
   </Modal>;
 }

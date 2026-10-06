@@ -30,7 +30,7 @@ export function Header({
         <button className="header-help" onClick={onHelp}>
           <HelpIcon size={17} /> 使用說明
         </button>
-        <button className="btn primary" onClick={onAdd} title={editable ? '新增材料' : 'Local editing only'}>
+        <button className="btn primary" onClick={onAdd} title={editable ? '新增材料' : '請先連結本機資料庫'}>
           <PlusIcon size={15} /> 新增材料
         </button>
       </div>

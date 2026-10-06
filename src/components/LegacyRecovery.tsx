@@ -11,8 +11,8 @@ export function LegacyRecovery({ recovery, editable, onImport, onClose }: {
   return <Modal title="發現舊瀏覽器材料資料" width={540} onClose={onClose}>
     <p>舊 localStorage 與 Git 主資料庫不同。舊資料仍保留，未自動覆寫或刪除。</p>
     <p className="muted">{editable
-      ? '匯入會取代目前草稿，保留舊 ID、歷史、曲線與索引。只有按 Save Database 才會寫入 repository。'
-      : 'GitHub Pages 為唯讀。請下載完整 JSON 備份，在本機「匯入 / 匯出」回復，再按 Save Database。CSV 可另外用來檢視材料數值。'}</p>
+      ? '匯入會取代目前草稿，保留舊 ID、歷史、曲線與索引。只有按 Save Database 才會寫入本機資料庫。'
+      : '請先連結本機資料庫，即可回復舊資料草稿並儲存；也可先下載完整 JSON 備份。CSV 可另外用來檢視材料數值。'}</p>
     {recovery.error && <p role="alert">舊資料未通過驗證：{recovery.error} 請下載原始備份，修復後再匯入。</p>}
     <div className="io-actions">
       {recovery.database && <button className="btn" onClick={() => downloadCsv(recovery.database!.materials, 'legacy-materials.csv')}>匯出舊資料 CSV</button>}

@@ -1,0 +1,51 @@
+import type { useMaterials } from '../lib/storage';
+import { SYNC_LABELS } from '../lib/githubSync';
+import { UNSUPPORTED_MESSAGE } from '../lib/browserDatabase';
+import { useEffect, useRef } from 'react';
+
+type State = ReturnType<typeof useMaterials>;
+const clock = (value: number | null) => value === null ? '' : new Date(value).toLocaleTimeString('zh-TW', { hour12: false });
+export function DatabaseStatus({ state }: { state: State }) {
+  const { fileStatus, fileSupported, developerMode, fileError, fileName, editable, dirty, saving, saveError,
+    connectFile, reloadFile, disconnectFile, lastReadAt, lastSavedAt, backupText, github, saveDatabase } = state;
+  const linked = fileStatus === 'linked';
+  const menu = useRef<HTMLDetailsElement>(null);
+  useEffect(() => { if ((fileError || saveError) && menu.current) menu.current.open = true; }, [fileError, saveError]);
+  const label = fileStatus === 'checking' ? '連結中' : linked ? '已連結' : fileStatus === 'permission' ? '需要重新授權' : developerMode ? '本機開發模式' : '尚未連結';
+  const downloadBackup = () => {
+    if (!backupText) return;
+    const url = URL.createObjectURL(new Blob([backupText], { type: 'application/json' }));
+    const link = document.createElement('a'); link.href = url; link.download = 'materials-before-save.json'; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  return <div className="database-status">
+    <details className="database-status-menu" ref={menu}>
+      <summary>資料庫狀態 · {saving ? '儲存並驗證中' : saveError ? '儲存失敗' : dirty ? '有未儲存變更' : lastSavedAt ? '儲存成功' : label}</summary>
+      <div className="database-status-panel" aria-label="資料庫狀態">
+        <h3>資料庫狀態</h3>
+        <dl>
+          <dt>本機資料庫</dt><dd><b>{label}</b>{fileName && <span>{fileName}</span>}{lastReadAt && <small>最後讀取：{clock(lastReadAt)}</small>}</dd>
+          <dt>本機儲存</dt><dd role="status">{saving ? '儲存並驗證中…' : saveError ? '✕ 儲存失敗' : dirty ? '● 有未儲存變更' : lastSavedAt ? '✓ 儲存成功' : editable ? '● 已儲存' : '尚未連結'}{lastSavedAt && <small>{clock(lastSavedAt)}</small>}</dd>
+          <dt>GitHub 同步</dt><dd role="status">{github.status === 'synced' ? '✓ ' : '● '}{SYNC_LABELS[github.status]}{github.status === 'synced' && dirty && <small>僅代表上次儲存版本；草稿尚未儲存。</small>}{github.commit && <small>Commit {github.commit.slice(0, 7)}</small>}{github.checkedAt && <small>檢查時間：{clock(github.checkedAt)}</small>}</dd>
+          {github.status === 'synced' && <><dt>GitHub Pages</dt><dd>{github.deployment === 'updated' ? '✓ 線上版已更新（資料庫一致）' : github.deployment === 'waiting' ? '● 等待部署' : '暫時無法確認部署'}</dd></>}
+        </dl>
+        {(github.status === 'pending' || github.status === 'changed') && <p>{github.status === 'changed' && <b>GitHub 資料與本機不同。 </b>}請使用 GitHub Desktop Commit + Push；若他人已更新資料，請先確認差異，不會自動覆寫任何一方。</p>}
+        {github.error && <p role="alert">{github.error}</p>}
+        {!fileSupported && <p>{UNSUPPORTED_MESSAGE}</p>}
+        {fileStatus === 'permission' && <p>需要重新授權本機資料庫。</p>}
+        {fileError && <p role="alert">{fileError}</p>}
+        {saveError && <p role="alert">{saveError} 草稿仍保留，可匯出完整 JSON 備份。</p>}
+        {(linked || developerMode) && <button className="btn" disabled={github.status === 'checking' || saving} onClick={github.check}>檢查 GitHub 同步</button>}
+        {(linked || fileStatus === 'permission') && <div className="database-file-actions">
+          {linked && <button className="btn" disabled={dirty || saving} onClick={() => void reloadFile()}>重新讀取本機資料庫</button>}
+          {fileStatus === 'permission' && <button className="btn" disabled={dirty || saving} onClick={() => void connectFile(true)}>重新選取檔案</button>}
+          <button className="btn" disabled={dirty || saving} onClick={() => void disconnectFile()}>中斷連結</button>
+        </div>}
+        {backupText && <button className="btn" onClick={downloadBackup}>下載寫入前備份</button>}
+        <p className="muted small">連結的檔案仍是 Git 主資料庫。網站只儲存本機檔案，不會自動 Commit 或 Push。</p>
+      </div>
+    </details>
+    {(!linked && fileSupported) && <button className="btn" disabled={fileStatus === 'checking' || saving} onClick={() => void connectFile()}>{fileStatus === 'permission' ? '重新授權' : '連結本機資料庫'}</button>}
+    {editable && <button className="btn" disabled={!dirty || saving} onClick={() => void saveDatabase()}>Save Database</button>}
+  </div>;
+}

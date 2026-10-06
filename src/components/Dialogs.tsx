@@ -4,8 +4,8 @@ import { csvToMaterials, downloadCsv } from '../lib/csv';
 import { Modal } from './Modal';
 import { DownloadIcon, UploadIcon } from './icons';
 import { downloadJson } from '../lib/legacy';
-import { validateDatabase, type MasterDatabase } from '../lib/database-schema.mjs';
-import { LOCAL_EDITOR } from '../lib/masterDatabase';
+import type { MasterDatabase } from '../lib/database-schema.mjs';
+import { parseFileDatabase } from '../lib/browserDatabase';
 import { requestLocalEditing } from '../lib/localEditing';
 
 export function ConfirmDelete({ material, onConfirm, onClose }: { material: Material; onConfirm: () => void; onClose: () => void }) {
@@ -40,6 +40,7 @@ export function ImportExportDialog({
   onRecover,
   onLegacy,
   onReadOnly,
+  dirty = false,
 }: {
   materials: Material[];
   visibleRows: Material[];
@@ -51,6 +52,7 @@ export function ImportExportDialog({
   onRecover: (value: unknown) => void;
   onLegacy: () => void;
   onReadOnly: () => void;
+  dirty?: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const recoveryRef = useRef<HTMLInputElement>(null);
@@ -98,7 +100,7 @@ export function ImportExportDialog({
           請使用本工具匯出的檔案格式（欄位：Name、Category、各性質欄位、Source、Notes）。名稱相同的列會更新該材料，其餘新增；空白欄位維持「—」。
         </p>
         {editable && <input ref={fileRef} type="file" accept=".csv,text/csv" hidden data-testid="csv-input" onChange={(e) => onFile(e.target.files?.[0])} />}
-        <button className="btn" title={editable ? '匯入 CSV' : 'Local editing only'} onClick={() => requestLocalEditing(editable, () => fileRef.current?.click(), onReadOnly)}>
+        <button className="btn" title={editable ? '匯入 CSV' : '請先連結本機資料庫'} onClick={() => requestLocalEditing(editable, () => fileRef.current?.click(), onReadOnly)}>
           <UploadIcon /> 選擇 CSV 檔案…
         </button>
         {editable && <>
@@ -118,7 +120,7 @@ export function ImportExportDialog({
         <p className="muted small">變更先保留在記憶體中，請按頁首 Save Database。</p>
         <input ref={recoveryRef} type="file" hidden accept=".json,application/json" onChange={async e => {
           const file = e.target.files?.[0]; if (!file) return;
-          try { setPendingRecovery(validateDatabase(JSON.parse(await file.text()))); }
+          try { setPendingRecovery(parseFileDatabase(await file.text())); }
           catch (error) { setPendingRecovery(null); setMessage({ kind: 'err', text: error instanceof Error ? error.message : 'JSON 檔案無法解析，未回復。' }); }
           e.target.value = '';
         }} />
@@ -129,13 +131,13 @@ export function ImportExportDialog({
         }}>確認回復草稿</button> <button className="btn" onClick={() => setPendingRecovery(null)}>取消</button></p>}
         </>}
       </section>
-      {!editable && <p className="muted">GitHub Pages = 唯讀資料庫檢視器。CSV／JSON 匯入、材料及索引編輯請使用本機 npm run dev。</p>}
-      {editable && <section className="io-block">
+      {!editable && <p className="muted">請先連結本機 src/data/materials.json，即可匯入資料。未連結時可瀏覽及匯出資料。</p>}
+      {(editable || dirty) && <section className="io-block">
         <h3>未儲存草稿</h3>
         <p className="muted">取消未儲存變更，回到本次載入或最後成功 Save Database 的資料（包含分類／SOURCE）。</p>
         {confirmReset ? (
           <span className="inline-confirm">
-            確定取代所有資料？{' '}
+            確定取消未儲存草稿？{' '}
             <button
               className="btn danger"
               onClick={() => {
@@ -162,12 +164,12 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
     <Modal title="使用說明" width={520} onClose={onClose}>
       <ul className="help-list">
         <li><b>尋找材料</b>：用上方搜尋列（名稱、關鍵字、來源），或以「材料類別 / 來源 / 更新時間」篩選；點欄位標題可排序。</li>
-        <li><b>查看資料</b>：點選任一列開啟詳細資料（基本性質、材料曲線、來源與備註、歷史記錄）；編輯與刪除僅限本機開發模式。</li>
+        <li><b>查看資料</b>：點選任一列開啟詳細資料（基本性質、材料曲線、來源與備註、歷史記錄）；連結本機資料庫後即可編輯與刪除。</li>
         <li><b>欄位設定</b>：拖曳（或用 ▲▼ 按鈕）調整欄位順序，取消勾選即可隱藏；Material Name 固定顯示。設定會儲存在此瀏覽器。</li>
         <li><b>缺少的數值</b>顯示為「—」，不會當作 0。</li>
         <li><b>比較材料</b>：勾選 2 個以上材料，按「比較材料」，數量不限。</li>
         <li><b>材料地圖</b>：Density × Young's Modulus 的輔助圖，點選 ⓘ 了解如何閱讀。</li>
-        <li><b>資料儲存</b>：Git 追蹤的 src/data/materials.json 是主資料庫。{LOCAL_EDITOR ? '編輯先保留為記憶體草稿，按 Save Database 寫入檔案，再手動 commit／push。' : 'GitHub Pages 只讀取已部署的 Git 版本，無法寫回資料庫。'} localStorage 只保存欄位偏好與舊資料通知已讀狀態。</li>
+        <li><b>資料儲存</b>：Git 追蹤的 src/data/materials.json 是主資料庫。使用 Chrome 或 Edge「連結本機資料庫」並授權後，編輯先保留為記憶體草稿，按 Save Database 寫入檔案，再到 GitHub Desktop Commit + Push。網站只讀取 GitHub 資料確認同步，不會推送。IndexedDB 只記住檔案控制代碼，localStorage 只保存欄位偏好與舊資料通知已讀狀態。</li>
         <li><b>快捷鍵</b>：按 <kbd>/</kbd> 跳到搜尋列。</li>
       </ul>
       <p className="muted small">

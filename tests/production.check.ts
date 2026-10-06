@@ -2,8 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { preview } from 'vite';
+import { createHash } from 'node:crypto';
+import { canonicalJson } from '../src/lib/database-schema.mjs';
 
-test('built GitHub Pages viewer has no filesystem writer; POST cannot change the repository database', async t => {
+test('production has browser-selected file access but no server filesystem endpoint or GitHub writer', async t => {
   const path = new URL('../src/data/materials.json', import.meta.url);
   const before = await readFile(path, 'utf8');
   const server = await preview({ preview: { host: '127.0.0.1', port: 0, open: false }, logLevel: 'silent' });
@@ -18,4 +20,9 @@ test('built GitHub Pages viewer has no filesystem writer; POST cannot change the
   const js = (await Promise.all(assets.filter(f => f.endsWith('.js')).map(f => readFile(new URL(`../dist/assets/${f}`, import.meta.url), 'utf8')))).join('\n');
   assert.equal(/node:fs|writeFile|createDatabaseMiddleware|x-local-database|__database/.test(js), false, 'production must omit local API/writer code');
   assert.ok(js.includes(JSON.stringify(JSON.parse(before).materials[0].id)), 'committed material ID is included in the deployed viewer');
+  assert.ok(js.includes('showOpenFilePicker') && js.includes('createWritable'), 'production includes explicit selected-file integration');
+  assert.ok(js.includes('連結本機資料庫') && js.includes('檢查 GitHub 同步'));
+  assert.equal(/Authorization|Bearer |github_pat_|ghp_/.test(js), false, 'no GitHub credentials');
+  const version = await (await fetch(origin + base + 'database-version.json')).json();
+  assert.equal(version.databaseSha256, createHash('sha256').update(canonicalJson(JSON.parse(before))).digest('hex'));
 });

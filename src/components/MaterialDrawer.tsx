@@ -45,12 +45,12 @@ export function MaterialDrawer({ material: m, units, onClose, onEdit, onDelete, 
       }
       footer={
         <>
-          <button className="btn danger-outline" onClick={onDelete} title={editable ? '刪除' : 'Local editing only'}>
+          <button className="btn danger-outline" onClick={onDelete} title={editable ? '刪除' : '請先連結本機資料庫'}>
             <TrashIcon /> 刪除
           </button>
           <span className="toolbar-spacer" />
           <button className="btn" onClick={onClose}>關閉</button>
-          <button className="btn primary" onClick={onEdit} title={editable ? '編輯' : 'Local editing only'}>
+          <button className="btn primary" onClick={onEdit} title={editable ? '編輯' : '請先連結本機資料庫'}>
             <EditIcon /> 編輯
           </button>
         </>

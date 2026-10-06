@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { committedDatabase, LOCAL_EDITOR, readLocalDatabase, writeLocalDatabase } from './masterDatabase';
-import { canonicalJson, validateDatabase } from './database-schema.mjs';
+import { validateDatabase } from './database-schema.mjs';
 import { detectLegacy, recoverLegacy, RECOVERY_KEY, type LegacyRecovery } from './legacy';
 import { PROPS } from './props';
 import { formatValue } from './format';
 import type { HistoryEntry, Material, MaterialInput, StressStrainData } from '../types';
 import { isStressStrainData } from './curveData';
 import { changeIndex, deriveIndexes, type IndexKind } from './indexes';
+import { authorizeDatabaseFile, databaseErrorChinese, databaseIsDirty, pickDatabaseFile, readDatabaseFile, restoreDatabaseFile, saveDatabaseFile, supportsFileDatabase, type DatabaseFileHandle, type FileSession } from './browserDatabase';
+import { forgetHandle, getRememberedHandle, rememberHandle } from './fileHandleStore';
+import { useGitHubSync } from './useGitHubSync';
 
 function newId(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -34,6 +37,16 @@ export function useMaterials() {
   const latest = useRef(draft);
   latest.current = draft;
   const [saved, setSaved] = useState(initial);
+  const [fileSupported] = useState(supportsFileDatabase);
+  const [fileStatus, setFileStatus] = useState<'unlinked' | 'checking' | 'permission' | 'linked' | 'unsupported'>(fileSupported ? 'unlinked' : 'unsupported');
+  const fileSession = useRef<FileSession | null>(null);
+  const pendingHandle = useRef<DatabaseFileHandle | null>(null);
+  const fileGeneration = useRef(0);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [backupText, setBackupText] = useState<string | null>(null);
+  const [lastReadAt, setLastReadAt] = useState<number | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [saveSequence, setSaveSequence] = useState(0);
   const [ready, setReady] = useState(!LOCAL_EDITOR);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
@@ -41,8 +54,14 @@ export function useMaterials() {
   const connection = useRef({ revision: '', token: '' });
   const [legacy, setLegacy] = useState<LegacyRecovery | null>(null);
   const indexes = useMemo(() => deriveIndexes(draft.materials, draft.indexes), [draft]);
-  const editable = LOCAL_EDITOR && ready;
-  const dirty = canonicalJson({ ...draft, indexes }) !== canonicalJson(saved);
+  const editable = fileStatus === 'linked' || (LOCAL_EDITOR && ready && !fileSession.current);
+  const dirty = databaseIsDirty({ ...draft, indexes }, saved);
+  const github = useGitHubSync(saved, fileStatus === 'linked' || (LOCAL_EDITOR && ready), saveSequence);
+  const applyFile = (session: FileSession) => {
+    fileSession.current = session; pendingHandle.current = session.handle;
+    latest.current = session.database; setDraft(session.database); setSaved(session.database);
+    setFileStatus('linked'); setLastReadAt(Date.now()); setLastSavedAt(null); setSaveError(null);
+  };
   const setMaterials = (update: Material[] | ((list: Material[]) => Material[])) => {
     const materials = typeof update === 'function' ? update(latest.current.materials) : update;
     // Keep previously-used, now unused categories/sources rather than losing zero-count entries.
@@ -51,14 +70,29 @@ export function useMaterials() {
   };
   useEffect(() => {
     let cancelled = false;
+    const version = fileGeneration.current;
     const load = async () => {
       try {
         const master = LOCAL_EDITOR ? await readLocalDatabase() : { database: initial, revision: '', token: '' };
-        if (cancelled) return;
+        if (cancelled || version !== fileGeneration.current) return;
         connection.current = master;
         latest.current = master.database;
         setDraft(master.database); setSaved(master.database); setReady(true);
         try { setLegacy(detectLegacy(localStorage, master.database)); } catch { /* blocked browser storage does not block the Git master */ }
+        if (fileSupported) {
+          try {
+            const handle = await getRememberedHandle();
+            if (cancelled || version !== fileGeneration.current || !handle) return;
+            pendingHandle.current = handle;
+            const session = await restoreDatabaseFile(handle);
+            if (cancelled || version !== fileGeneration.current) return;
+            if (session && !databaseIsDirty(latest.current, master.database)) applyFile(session);
+            else if (session) setFileError('已有未儲存草稿，因此未自動切換至記住的檔案。請先儲存或匯出草稿。');
+            else setFileStatus('permission');
+          } catch (error) {
+            if (!cancelled && version === fileGeneration.current) setFileError(databaseErrorChinese(error));
+          }
+        }
       } catch (error) {
         if (!cancelled) setSaveError(error instanceof Error ? error.message : '本機資料庫讀取失敗。');
       }
@@ -67,21 +101,76 @@ export function useMaterials() {
     return () => { cancelled = true; };
   }, [initial]);
   useEffect(() => {
-    if (!LOCAL_EDITOR || !dirty) return;
+    if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
   const assertEditor = () => { if (!editable) throw new Error('資料庫尚未就緒，或目前為唯讀模式。'); };
+  const connectFile = async (forcePick = false) => {
+    if (savingRef.current || fileStatus === 'checking') return;
+    if (dirty && (forcePick || fileStatus !== 'permission')) { setFileError('有未儲存變更，請先儲存或匯出草稿並取消未儲存變更，再連結其他檔案。'); return; }
+    ++fileGeneration.current;
+    setFileError(null);
+    const previousStatus = fileStatus;
+    setFileStatus('checking');
+    try {
+      const handle = !forcePick && previousStatus === 'permission' && pendingHandle.current
+        ? pendingHandle.current : (await pickDatabaseFile())[0];
+      if (!handle) { setFileStatus(previousStatus); return; }
+      // Permission requests occur only in this explicit user action.
+      if (!await authorizeDatabaseFile(handle)) {
+        pendingHandle.current = handle; setFileStatus('permission');
+        setFileError('尚未取得讀寫權限，請按「重新授權」並允許存取。'); return;
+      }
+      const session = await readDatabaseFile(handle);
+      if (dirty && fileSession.current) {
+        if (session.canonical !== fileSession.current.canonical) throw new Error('本機檔案與未儲存草稿的基準不同。請先匯出草稿，再取消未儲存變更並重新讀取。');
+        setFileStatus('linked'); setLastReadAt(Date.now());
+      } else applyFile(session);
+      try { await rememberHandle(handle); }
+      catch { setFileError('檔案已連結，但此瀏覽器無法記住連結，下次需重新選取。'); }
+    } catch (error) {
+      setFileStatus(previousStatus);
+      if (!(error instanceof Error && error.name === 'AbortError')) setFileError(databaseErrorChinese(error));
+    }
+  };
+  const reloadFile = async () => {
+    if (!fileSession.current || savingRef.current) return;
+    if (dirty) { setFileError('有未儲存變更，請先儲存或匯出草稿並取消變更，再重新讀取。'); return; }
+    setFileError(null);
+    try { applyFile(await readDatabaseFile(fileSession.current.handle)); }
+    catch (error) { setFileError(databaseErrorChinese(error)); if (error instanceof Error && error.name === 'NotAllowedError') setFileStatus('permission'); }
+  };
+  const disconnectFile = async () => {
+    if (dirty || savingRef.current) { setFileError('請先儲存或匯出草稿並取消未儲存變更，再中斷連結。'); return; }
+    try { await forgetHandle(); }
+    catch { setFileError('無法移除已記住的連結，請稍後再試。'); return; }
+    ++fileGeneration.current;
+    fileSession.current = null; pendingHandle.current = null;
+    setFileStatus(fileSupported ? 'unlinked' : 'unsupported'); setFileError(null); setLastReadAt(null); setLastSavedAt(null); setBackupText(null);
+    if (LOCAL_EDITOR) {
+      setReady(false);
+      try { const master = await readLocalDatabase(); connection.current = master; latest.current = master.database; setDraft(master.database); setSaved(master.database); setReady(true); }
+      catch (error) { setSaveError(databaseErrorChinese(error)); }
+    } else { latest.current = initial; setDraft(initial); setSaved(initial); }
+  };
   const saveDatabase = async () => {
     if (!editable || savingRef.current) return;
     savingRef.current = true; setSaving(true); setSaveError(null);
     try {
       const snapshot = validateDatabase({ ...latest.current, indexes: deriveIndexes(latest.current.materials, latest.current.indexes) });
-      connection.current.revision = await writeLocalDatabase(snapshot, connection.current.revision, connection.current.token);
+      if (fileSession.current) {
+        const session = await saveDatabaseFile(fileSession.current, snapshot);
+        fileSession.current = session; setBackupText(session.backupText ?? null);
+      } else connection.current.revision = await writeLocalDatabase(snapshot, connection.current.revision, connection.current.token);
       // An edit made while the request is in flight stays dirty; it was not in this snapshot.
       setSaved(snapshot);
-    } catch (error) { setSaveError(error instanceof Error ? error.message : '儲存失敗，變更仍在記憶體中。'); }
+      setLastSavedAt(Date.now()); setSaveSequence(sequence => sequence + 1);
+    } catch (error) {
+      setSaveError(databaseErrorChinese(error)); setBackupText(fileSession.current?.backupText ?? null);
+      if (fileSession.current && error instanceof Error && error.name === 'NotAllowedError') setFileStatus('permission');
+    }
     finally { savingRef.current = false; setSaving(false); }
   };
   const dismissLegacy = () => {
@@ -152,7 +241,8 @@ export function useMaterials() {
     setMaterials(next);
     return { added, updated, unchanged };
   };
-  const discardDraft = () => { assertEditor(); latest.current = saved; setDraft(saved); setSaveError(null); };
+  // Discarding an in-memory draft is safe even if external file permission was revoked.
+  const discardDraft = () => { latest.current = saved; setDraft(saved); setSaveError(null); };
   const editIndex = (kind: IndexKind, id: string | null, name: string): string | null => {
     if (!editable) return '目前為唯讀模式，請在本機編輯資料庫。';
     const current = latest.current.materials;
@@ -166,5 +256,7 @@ export function useMaterials() {
     return null;
   };
   return { materials: draft.materials, add, update, remove, importMany, discardDraft, setCurve, indexes, editIndex,
-    editable, dirty, ready, saving, saveError, saveDatabase, legacy, dismissLegacy, importLegacy, showLegacy, importDatabase, database: draft };
+    editable, dirty, ready, saving, saveError, saveDatabase, legacy, dismissLegacy, importLegacy, showLegacy, importDatabase, database: draft,
+    fileSupported, fileStatus, fileError, fileName: fileSession.current?.handle.name ?? pendingHandle.current?.name ?? null, connectFile, reloadFile, disconnectFile,
+    lastReadAt, lastSavedAt, backupText, github, developerMode: LOCAL_EDITOR && ready && !fileSession.current };
 }

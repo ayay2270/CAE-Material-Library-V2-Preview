@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Material, MaterialInput, View } from './types';
 import { useMaterials } from './lib/storage';
-import { LOCAL_EDITOR } from './lib/masterDatabase';
+import { DatabaseStatus } from './components/DatabaseStatus';
 import { requestLocalEditing } from './lib/localEditing';
 import { LocalEditingDialog } from './components/LocalEditingDialog';
 import { LegacyRecovery } from './components/LegacyRecovery';
@@ -36,9 +36,9 @@ import {
 type Dialog = 'help' | 'io' | 'mapInfo' | 'localEditing' | null;
 
 export function App() {
+  const materialState = useMaterials();
   const { materials, add, update, remove, importMany, discardDraft, setCurve, indexes, editIndex,
-    editable, dirty, ready, saving, saveError, saveDatabase, legacy, dismissLegacy, importLegacy, showLegacy, importDatabase, database } =
-    useMaterials();
+    editable, saveError, legacy, dismissLegacy, importLegacy, showLegacy, importDatabase, database } = materialState;
 
   const [indexManager, setIndexManager] = useState<IndexKind | null>(null);
   const categoryLabels = useMemo(
@@ -152,10 +152,7 @@ export function App() {
     <div className="app">
       <Header
         editable={editable}
-        databaseStatus={LOCAL_EDITOR ? <div className="database-status">
-          <span role="status">{!ready ? 'Database unavailable' : saving ? 'Saving…' : dirty ? 'Unsaved changes' : 'Database saved'}</span>
-          <button className="btn" disabled={!editable || !dirty || saving} onClick={() => void saveDatabase()}>Save Database</button>
-        </div> : <span className="muted small">Local editing only</span>}
+        databaseStatus={<DatabaseStatus state={materialState} />}
         onHelp={() => setDialog('help')}
         onAdd={() => requestEdit(() => setEditing('new'))}
       />
@@ -311,13 +308,14 @@ export function App() {
         />
       )}
       {dialog === 'help' && <HelpDialog onClose={() => setDialog(null)} />}
-      {dialog === 'localEditing' && <LocalEditingDialog onClose={() => setDialog(null)} />}
+      {dialog === 'localEditing' && <LocalEditingDialog onClose={() => setDialog(null)} supported={materialState.fileSupported} permissionNeeded={materialState.fileStatus === 'permission'} onConnect={() => { setDialog(null); void materialState.connectFile(); }} />}
       {dialog === 'mapInfo' && (
         <MapInfoDialog onClose={() => setDialog(null)} />
       )}
       {dialog === 'io' && (
         <ImportExportDialog
           editable={editable}
+          dirty={materialState.dirty}
           database={database}
           onReadOnly={showLocalEditing}
           onRecover={importDatabase}
@@ -334,7 +332,7 @@ export function App() {
       )}
 
       {legacy && <LegacyRecovery recovery={legacy} editable={editable} onImport={importLegacy} onClose={dismissLegacy} />}
-      {saveError && <div className="database-save-error" role="alert">{saveError} 變更未寫入；可從「匯入 / 匯出」下載草稿備份。</div>}
+      {saveError && <div className="database-save-error" role="alert">{saveError} 尚未確認儲存成功；草稿仍保留，可從「匯入 / 匯出」下載備份。</div>}
 
       {notice && (
         <div className="toast" role="status">
