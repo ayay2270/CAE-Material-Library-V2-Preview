@@ -1,15 +1,13 @@
 import { useMemo, useState } from 'react';
 import type { Material } from '../types';
-import { calcEtan } from '../lib/etan';
-import type { EtanInputs } from '../lib/etan';
-import { formatValue } from '../lib/format';
-import { EtanCalculationDetails } from './EtanCalculationDetails';
+import type { HardeningInputs } from '../lib/etan';
+import { SolverPlasticityResults } from './SolverPlasticityResults';
 
 interface Props {
   materials: Material[];
 }
 
-type Field = keyof EtanInputs;
+type Field = keyof HardeningInputs;
 const FIELDS: { key: Field; label: string; unit: string }[] = [
   { key: 'youngsModulus', label: "Young's Modulus", unit: 'MPa' },
   { key: 'yieldStress', label: 'Yield Stress', unit: 'MPa' },
@@ -19,7 +17,7 @@ const FIELDS: { key: Field; label: string; unit: string }[] = [
 
 const toText = (v: number | null) => (v === null ? '' : String(v));
 
-/** Existing ETAN workspace page; uses the same bilinear estimate as material Properties. */
+/** Existing workspace calculator; shared solver outputs with material Properties. */
 export function EtanPage({ materials }: Props) {
   const [matId, setMatId] = useState<string>('');
   const [vals, setVals] = useState<Record<Field, string>>({ youngsModulus: '', yieldStress: '', ultimateStress: '', elongation: '' });
@@ -36,18 +34,19 @@ export function EtanPage({ materials }: Props) {
     );
   };
 
-  const inputs: EtanInputs = useMemo(() => {
+  const inputs: HardeningInputs = useMemo(() => {
     const n = (s: string) => (s.trim() !== '' && Number.isFinite(Number(s)) ? Number(s) : null);
     return { youngsModulus: n(vals.youngsModulus), yieldStress: n(vals.yieldStress), ultimateStress: n(vals.ultimateStress), elongation: n(vals.elongation) };
   }, [vals]);
 
-  const result = calcEtan(inputs);
+  // Retain supplied H while viewing the material. Edited calculator inputs use the existing estimate.
+  const providedH = material && FIELDS.every(({ key }) => inputs[key] === material[key]) ? material.etan : null;
 
   return (
     <main className="page etan-page">
       <div className="page-head">
-        <h1>ETAN 算法</h1>
-        <span className="page-sub">由工程應力／應變資料估算雙線性 ETAN；Elongation 以 % 輸入。</span>
+        <h1>Solver Plasticity Parameters</h1>
+        <span className="page-sub">OptiStruct MATS1 使用 H；LS-DYNA MAT_003 使用轉換後的 ETAN。Elongation 以 % 輸入。</span>
       </div>
 
       <div className="etan-card">
@@ -74,21 +73,7 @@ export function EtanPage({ materials }: Props) {
           ))}
         </div>
 
-        <div className="etan-result" role="status">
-          <div>
-            <span className="muted small">Calculated ETAN (Bilinear Estimate) · MPa</span>
-            <b data-testid="etan-result">{result === null ? '—' : result.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>
-          </div>
-          {result === null && <p className="etan-note">ETAN unavailable. Enter valid positive values with UTS ≥ Yield Stress and ultimate strain greater than yield strain.</p>}
-          {material && (
-            <div className="etan-stored">
-              <span className="muted small">資料庫中儲存的 ETAN</span>
-              <b>{formatValue('etan', material.etan)}</b>
-              <span className="muted small">MPa</span>
-            </div>
-          )}
-        </div>
-        <EtanCalculationDetails inputs={inputs} />
+        <SolverPlasticityResults inputs={inputs} providedH={providedH} density={material?.density} poissonRatio={material?.poissonRatio} />
       </div>
     </main>
   );

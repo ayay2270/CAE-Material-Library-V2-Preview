@@ -2,7 +2,8 @@ import type { Material } from '../types';
 
 /**
  * Idealised bilinear curve derived from the stored properties:
- * linear elastic (slope E) up to σy, then slope ETAN up to σu (or to ε if σu is missing).
+ * linear elastic (slope E) up to σy, then the existing stored work-hardening estimate.
+ * This historical visual approximation is unchanged; it is not a MAT_003 solver output.
  * It is a visual aid only, not measured test data.
  */
 export function curvePoints(m: Material): { e: number; s: number }[] | null {
@@ -30,7 +31,7 @@ export function StressStrainCurve({ m }: { m: Material }) {
   if (!pts) {
     return (
       <div className="curve-empty">
-        無法繪製曲線：需要 Young's Modulus、Yield Stress、ETAN，以及 Ultimate Stress 或 Elongation。
+        無法繪製曲線：需要 Young's Modulus、Yield Stress、H，以及 Ultimate Stress 或 Elongation。
       </div>
     );
   }
@@ -73,7 +74,7 @@ export function StressStrainCurve({ m }: { m: Material }) {
         <text x={(pad.l + W - pad.r) / 2} y={H - 4} textAnchor="middle" className="axis-title">Strain (mm/mm)</text>
         <text transform={`translate(11 ${(pad.t + H - pad.b) / 2}) rotate(-90)`} textAnchor="middle" className="axis-title">Stress (MPa)</text>
       </svg>
-      <figcaption>理想化雙線性曲線，由 Young's Modulus、Yield Stress、ETAN 與 Ultimate Stress 推算，僅供視覺參考，非實測資料。</figcaption>
+      <figcaption>既有理想化雙線性曲線，由 Young's Modulus、Yield Stress、儲存的 H 與 Ultimate Stress 推算；僅供視覺參考，非實測資料或 MAT_003 solver output。</figcaption>
     </figure>
   );
 }

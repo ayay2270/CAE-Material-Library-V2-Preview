@@ -15,7 +15,7 @@ export const PROPS: PropDef[] = [
   { key: 'youngsModulus', symbol: 'E', label: "Young's Modulus", unit: 'MPa' },
   { key: 'poissonRatio', symbol: 'ν', label: "Poisson's Ratio", unit: '—' },
   { key: 'yieldStress', symbol: 'σy', label: 'Yield Stress', unit: 'MPa' },
-  { key: 'etan', symbol: 'Et', label: 'ETAN', unit: 'MPa', optional: true },
+  { key: 'etan', symbol: 'H', label: 'H (MATS1)', unit: 'MPa', optional: true },
   { key: 'ultimateStress', symbol: 'σu', label: 'Ultimate Stress', unit: 'MPa' },
   { key: 'elongation', symbol: 'ε', label: 'Elongation', unit: '%', optional: true },
 ];

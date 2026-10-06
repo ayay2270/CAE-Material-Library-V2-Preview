@@ -102,7 +102,10 @@ export function csvToMaterials(text: string): ImportResult {
   const srcIdx = col('source');
   const notesIdx = col('notes');
   const curveIdx = col('stress-strain curve json');
-  const propIdx = PROPS.map((p) => col(p.label.toLowerCase()));
+  // Accept the former ETAN header for the existing stored H field in older exports.
+  const propIdx = PROPS.map((p) => p.key === 'etan'
+    ? (col(p.label) >= 0 ? col(p.label) : col('etan'))
+    : col(p.label));
 
   const rows: MaterialInput[] = [];
   table.slice(1).forEach((r, i) => {

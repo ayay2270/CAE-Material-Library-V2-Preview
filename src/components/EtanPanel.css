@@ -54,6 +54,33 @@
 .etan-formula-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 16px; margin-top: 8px; }
 .etan-auto-reference .etan-equation { font-size: 17px; }
 .etan-formula-note { margin: 10px 0 0; font-size: 11px; }
+.solver-results { display: flex; flex-direction: column; gap: 10px; }
+.solver-result { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--row-sel); }
+.solver-result-lsdyna { background: var(--head-bg); border-left: 3px solid var(--workspace-blue); }
+.solver-result h4 { margin: 0 0 8px; color: var(--navy); font-size: 13px; }
+.solver-parameter { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; color: var(--ink); }
+.solver-parameter b { font-family: var(--mono); font-size: 21px; }
+.solver-parameter span { font-size: 12px; }
+.solver-result .solver-result-value { display: block; margin: 8px 0; font-family: var(--mono); font-size: 24px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; color: var(--navy); }
+.solver-result p { margin: 0; font-size: 12px; color: var(--ink-2); }
+.solver-source { display: block; margin-top: 6px; color: var(--ink-2); font-size: 11px; }
+.solver-conversion { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 5px; color: var(--workspace-blue); font-size: 12px; }
+.solver-conversion-formula { flex-basis: 100%; text-align: center; color: var(--ink-2); font-family: var(--mono); font-size: 12px; }
+.solver-summary-title { margin: 14px 0 8px; font-size: 13px; }
+.solver-summary { table-layout: fixed; }
+.solver-summary th { width: 45%; }
+.solver-summary th b, .solver-summary th span { display: block; }
+.solver-summary th b { font-family: var(--mono); color: var(--ink); }
+.solver-summary th span { margin-top: 2px; color: var(--ink-2); }
+.solver-summary th, .solver-summary td { overflow-wrap: anywhere; }
+.solver-summary td:last-child { width: 18%; }
+.solver-definitions { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 10px; margin: 12px 0; }
+.solver-definitions dt { font-family: var(--mono); font-weight: 600; color: var(--ink); }
+.solver-definitions dd { margin: 0; }
+.etan-auto-reference h5 { margin: 0; color: var(--ink); font-size: 12px; }
+.etan-auto-details-body > h4:not(:first-child) { margin-top: 16px; }
+.etan-auto-details-body > .etan-step-value { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+.etan-page .solver-plasticity { margin-top: 0; }
 @media (max-width: 800px) {
   .etan-page .etan-inputs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
