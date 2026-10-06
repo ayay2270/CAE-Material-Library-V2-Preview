@@ -1,78 +1,131 @@
+## Temporary Preview
+
+[Open Temporary Preview](https://raw.githack.com/ayay2270/CAE-Material-Library-V2-Preview/preview/git-master-database/dist/index.html)
+
+Branch: `preview/git-master-database`
+
+This is a temporary, read-only browser preview. Local editing and **Save Database**
+are available only through `npm run dev`. **main has not been modified or merged.**
+This preview branch tracks `dist/`; its `npm run build` uses relative asset paths
+(`vite build --base=./`) for raw.githack. The normal Vite Pages base remains
+`/CAE-Material-Library-V2-Preview/`; `npm run build:pages` builds with that base.
+The branch build override does not change main or its deployment behavior.
+After editing this preview branch, rebuild `dist/` before committing it.
+
 # CAE Material Library — V2 Preview
 
-## Preview Website
+[Open V2 preview](https://ayay2270.github.io/CAE-Material-Library-V2-Preview/)
 
-[Open the V2 preview](https://ayay2270.github.io/CAE-Material-Library-V2-Preview/)
+**GitHub Pages = read-only database viewer. Local development = database editor.**
+This repository remains separate from [the original production application](https://ayay2270.github.io/CAE-Material-Library/).
+The initial UI came from `concepts/table-workspace-v2`, commit `a36ec592c822c3deb977bca9476049e705ffc28b`.
+The table/card layout, engineering behavior, comparison and Material Map are unchanged.
 
-This repository deploys the V2 concept for evaluation. It is **not yet the production version**.
-Production remains on the original repository's `main` branch:
-[CAE Material Library production](https://ayay2270.github.io/CAE-Material-Library/).
+## Master database
 
-**Table View is the default Material Library view. Card View is secondary.**
+**`src/data/materials.json` is the authoritative, Git-tracked database.**
 
-## Source
+```text
+Git master JSON → GitHub Pages build → all computers
+Local UI draft → Save Database → repository JSON → manual commit/push
+```
 
-Original repository: [ayay2270/CAE-Material-Library](https://github.com/ayay2270/CAE-Material-Library)
+One JSON document contains `schemaVersion: 1`, `materials` and `indexes` (`categories` and `sources`). Records and indexes save together. All 11 built-in records were migrated without changing IDs, engineering values, notes, timestamps or histories.
 
-Source branch: [`concepts/table-workspace-v2`](https://github.com/ayay2270/CAE-Material-Library/tree/concepts/table-workspace-v2)
+Material records retain every existing field: ID, name, category, density, Young's Modulus, Poisson's Ratio, yield stress, ETAN, ultimate stress, elongation, source, notes, updatedAt, history and optional full stress-strain curve. Unknown JSON fields, including future solver/curve metadata, survive saving. There were no dedicated LS-DYNA/OptiStruct fields in the original schema.
 
-Copied source commit: `a36ec592c822c3deb977bca9476049e705ffc28b`.
-Only this preview's README, Vite base path, and Pages workflow differ from that snapshot.
-No application code, engineering values, or calculations were changed for deployment.
+Unused categories/sources remain in the database. Category rename keeps the category ID stable; source rename updates referenced materials and adds the existing history entry. The [storage audit](docs/storage-architecture.md) documents the complete pre/post migration flow.
 
-## Functions
+## Local settings and legacy data
 
-- Dense sortable engineering table with sticky Material Name / Actions and missing values shown as `—`.
-- Secondary category-grouped cards, dark workspace sidebar, and live category/source counts.
-- Shared category/source/time filters, search, and selection across Table/Card views.
-- Column visibility, drag/arrow reordering, default restoration, and Density / Stress display units.
-- Add, edit, delete, detail drawer, source/notes/history, and localStorage persistence.
-- Material comparison, Density × Young's Modulus Material Map, and CSV import/export.
-- The existing 11 sample materials and the existing ETAN calculation placeholder.
-- Sidebar **編輯** controls to add or rename Material Category / Source index items,
-  including unused items with a count of 0. Source renaming updates every referenced
-  material and its history; category renaming keeps category IDs stable.
-- **Detail → 材料曲線 → 加入完整曲線**: paste Strain / Stress points or import CSV/TSV,
-  select units and definitions, preview, save, edit and export complete curves.
-  Every point and its original order are preserved. Invalid rows block saving.
-  This does not change material properties, engineering/true definitions or ETAN logic.
+| localStorage key | Purpose |
+| --- | --- |
+| `cae-material-library:columns:v1` | Browser-specific visible columns and column order |
+| `cae-material-library:legacy-recovery:v1` | Signature of the old-data notice acknowledged in this browser |
+| `cae-material-library:v1` | Legacy material data; read only for recovery, never overwritten/deleted |
+| `cae-material-library:indexes:v1` | Legacy category/source catalogs; read only for recovery, never overwritten/deleted |
 
-## Run locally
+Material data is no longer written to localStorage. Units, filters, sorting, selection and table/card preference retain their existing in-memory behavior; no extra preference keys were introduced.
+
+## Daily workflow
+
+Use Node.js 22 or newer. First-time setup:
 
 ```bash
 git clone https://github.com/ayay2270/CAE-Material-Library-V2-Preview.git
 cd CAE-Material-Library-V2-Preview
-npm ci
-npm run dev
-npm run build
 ```
 
-The preview uses `/CAE-Material-Library-V2-Preview/` as its Vite base path.
-Open the local URL printed by Vite, including that path. Production output is in `dist/`.
+Before editing:
 
-## Deployment
+```bash
+git pull
+npm ci
+npm run dev
+```
 
-GitHub Actions (`.github/workflows/pages.yml`) checks out `main`, sets up Node 22,
-runs `npm ci` and `npm run build`, uploads `dist/`, and deploys it to GitHub Pages.
-It runs on pushes to this repository's `main` and supports `workflow_dispatch`.
-This repository's default branch is `main`; its Pages source is GitHub Actions.
-The original repository's branches, workflow, and production deployment remain separate.
+Open Vite's local URL including **`/CAE-Material-Library-V2-Preview/`**. Edit materials, category/SOURCE indexes or full curves, or import CSV. These actions update a memory draft; the header shows **Unsaved changes**. Click **Save Database** to write `src/data/materials.json`. **Database saved** appears only after the server confirms the write.
 
-## Engineering and storage notes
+Then explicitly run:
 
-- Values remain stored in the mm–t–N–s system: Density t/mm³, Stress MPa, Elongation %.
-- CSV exports use those stored base units regardless of the display units.
-- Full curves use mm/mm and MPa internally. Material CSV backups include the curve
-  and metadata in **Stress-Strain Curve JSON**; older CSV imports preserve saved curves.
-  The separate curve CSV contains all numerical points in base units.
-- Source, Notes, and history entries retain their existing text and engineering meaning.
-- The Lenovo logo is `src/assets/lenovo-logo.png`.
-- The header uses a photographed Lake Tahoe panorama, `src/assets/header-mountain-lake.jpg`.
-  Photo credit and source are in `src/assets/CREDITS.md` and the 使用說明 dialog.
-- No ETAN formula was introduced. `src/lib/etan.ts` retains the existing placeholder.
-- Material data is stored in `cae-material-library:v1`; column preferences use
-  `cae-material-library:columns:v1`; category/source indexes use
-  `cae-material-library:indexes:v1`. There is no backend. Export CSV before clearing browser site data.
-  Material CSV does not include index display names or unused index items.
-- GitHub Pages projects under the same origin share browser storage. This preview deliberately
-  preserves the existing storage keys and persistence behavior of V2.
+```bash
+npm test
+npm run build
+npm run test:production
+git status
+git add .
+git commit -m "Update material database"
+git push
+```
+
+The app/helper never runs Git commands or uses GitHub credentials. GitHub Actions tests/builds/deploys this repository's `main`; after deployment, Computer B opens/reloads Pages and sees the committed data. Uncommitted local edits are not visible on other computers.
+
+## Local Save Database
+
+`npm run dev` mounts `server/database-api.mjs` as Vite development middleware. GET `/CAE-Material-Library-V2-Preview/__database` loads the on-disk JSON and SHA-256 revision. POST writes only that fixed repository file, with a loopback connection, same Origin/Host and an ephemeral local anti-CSRF token. No filesystem path comes from browser input. Keep the editor on localhost; non-loopback API clients are rejected even with `--host`.
+
+Shared validation runs during build/recovery/save. It rejects malformed schema/JSON, missing fields, duplicate IDs, invalid curves, non-finite numbers, inconsistent indexes and an empty material database. Negative/unloading curve points remain valid and retain their original order. A revision check prevents overwriting another editor's newer save; an exclusive file lock coordinates different local servers on the same checkout.
+
+Each save retains one previous version in **`data/backups/materials.backup.json`**, then writes a temporary master file, flushes and validates it and atomically replaces the master. Backup failure prevents master replacement. Backups/temp files/locks are Git-ignored; Git provides long-term history. If a server crashes leaving `src/data/materials.json.lock`, stop all local editors before removing the stale lock and retrying.
+
+On failure, the draft remains in memory and an error is shown. Export the complete JSON draft before reloading. For a revision conflict, reload the newer master, reconcile your exported draft and save again. Unsaved local drafts trigger a browser navigation warning. **匯入 / 匯出 → 取消未儲存變更** restores the last loaded/successfully saved database.
+
+## GitHub Pages / production
+
+Both build commands embed the Git JSON into static `dist/` assets. On this temporary branch, `npm run build` uses relative paths for raw.githack; `npm run build:pages` uses the unchanged Pages base **`/CAE-Material-Library-V2-Preview/`**. Websites display the deployed snapshot; a new commit becomes visible after deployment and browser reload. `npm run preview` is also read-only.
+
+Production hides material/index/curve editing and CSV/JSON import. Browsing, searching, filtering, comparison, Material Map, details and exports remain available. The production build contains no local API client or filesystem writer; preview has no write middleware. Only `dist/` is deployed. No GitHub token, external backend, Supabase or Firebase is required.
+
+## Legacy localStorage recovery
+
+Startup checks both old keys without changing them. Differing or corrupt old data triggers a recovery notice; it never automatically replaces the Git master.
+
+- **匯出舊資料 CSV** downloads supported material/curve data when valid.
+- **下載完整 JSON 備份** preserves IDs, history, curves and all indexes. Corrupt data exports the original raw strings for manual repair.
+- In local mode, **匯入舊資料為草稿** requires confirmation to replace the current draft, then explicit **Save Database** to write the master.
+- **忽略舊資料** only acknowledges the current legacy content. Changed content triggers a notice again. **匯入 / 匯出 → 檢查舊瀏覽器資料** reopens an acknowledged notice.
+
+Pages and localhost have different origins. Download the complete JSON backup on Pages, then recover locally via **匯入 / 匯出 → 匯入完整 JSON 備份 → 確認回復草稿 → Save Database**. Recovery replaces the draft rather than silently merging conflicting IDs; export an existing draft first when needed. Pages projects on the same origin may share the old keys, which remain untouched so the original application is not disrupted.
+
+## CSV, curves and engineering
+
+Existing CSV name matching, null handling and import history are unchanged. Local CSV import → memory draft → Save Database → Git JSON. Production keeps export and hides import.
+
+Material CSV includes **Stress-Strain Curve JSON**, preserving all points/order, definitions, source and notes; old CSV without the curve column preserves saved curves when updating materials. CSV does not retain IDs/full history/index labels/unused items: use complete JSON export for lossless database backup.
+
+**Detail → 材料曲線** still supports paste or CSV/TSV input, units/definitions, preview, save, edit and export locally. Pages supports viewing/export. Curves remain mm/mm and MPa internally; the old application did not store original input-unit selections. Additional curve metadata present in JSON survives saving. Separate curve CSV exports all numerical points in base units; material CSV/JSON also preserves definitions/metadata.
+
+Material values remain in mm–t–N–s (density t/mm³, stress MPa, elongation %). Display conversions, stress/strain definitions, ETAN placeholders, comparison and Material Map calculations are unchanged. No engineering formulas were added. Header artwork and photo credits (`src/assets/CREDITS.md`) are unchanged.
+
+## Checks and deployment
+
+```bash
+npm ci
+npm test
+npm run build
+npm run test:production
+```
+
+Tests cover current master loading, exact original migration, atomic writes/backups, duplicate/empty/corrupt rejection, concurrent saves, backup failures, curves/extra metadata, unused indexes, legacy recovery, CSV→save and local API validation. Production tests serve the actual build, check local API code is absent and verify POST cannot change the master. Frozen migration fixtures live only in `tests/`, so intentional future library edits do not fail the 11-record regression test.
+
+`.github/workflows/pages.yml` uses Node 22 and these checks before deploying `dist/` on pushes to `main` or manual workflow dispatch. The original production repository remains separate.

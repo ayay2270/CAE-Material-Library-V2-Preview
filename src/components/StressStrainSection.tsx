@@ -18,10 +18,12 @@ export function StressStrainSection({
   material,
   units,
   onSave,
+  editable,
 }: {
   material: Material;
   units: UnitPrefs;
   onSave: (data: StressStrainData) => string | null;
+  editable: boolean;
 }) {
   const stored = isStressStrainData(material.stressStrainCurve)
     ? material.stressStrainCurve
@@ -109,7 +111,7 @@ export function StressStrainSection({
             </option>
           </select>
         </label>
-        {!editing && (
+        {!editing && editable && (
           <button className="btn" onClick={beginEdit}>
             {stored ? <EditIcon /> : <PlusIcon />}
             {stored ? '編輯完整曲線' : '加入完整曲線'}

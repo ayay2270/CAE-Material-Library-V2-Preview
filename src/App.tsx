@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Material, MaterialInput, View } from './types';
 import { useMaterials } from './lib/storage';
+import { LOCAL_EDITOR } from './lib/masterDatabase';
+import { LegacyRecovery } from './components/LegacyRecovery';
 import { useColumnPrefs } from './lib/columns';
 import { DEFAULT_UNITS } from './lib/format';
 import type { UnitPrefs } from './lib/format';
@@ -31,7 +33,8 @@ import {
 type Dialog = 'help' | 'io' | 'mapInfo' | null;
 
 export function App() {
-  const { materials, add, update, remove, importMany, resetToSamples, setCurve, indexes, editIndex } =
+  const { materials, add, update, remove, importMany, discardDraft, setCurve, indexes, editIndex,
+    editable, dirty, ready, saving, saveError, saveDatabase, legacy, dismissLegacy, importLegacy, showLegacy, importDatabase, database } =
     useMaterials();
 
   const [indexManager, setIndexManager] = useState<IndexKind | null>(null);
@@ -119,10 +122,10 @@ export function App() {
   const save = (input: MaterialInput) => {
     if (editing && editing !== 'new') {
       update(editing.id, input);
-      setNotice(`已儲存 ${input.name} 的變更。`);
+      setNotice(`已更新 ${input.name} 草稿；請按 Save Database 寫入資料庫。`);
     } else {
       add(input);
-      setNotice(`已新增 ${input.name}。`);
+      setNotice(`已新增 ${input.name} 草稿；請按 Save Database 寫入資料庫。`);
     }
     setEditing(null);
   };
@@ -130,7 +133,7 @@ export function App() {
   const confirmDelete = () => {
     if (!deleting) return;
     remove(deleting.id);
-    setNotice(`已刪除 ${deleting.name}。`);
+    setNotice(`已從草稿刪除 ${deleting.name}；請按 Save Database。`);
     if (detailId === deleting.id) setDetailId(null);
     setDeleting(null);
   };
@@ -143,6 +146,11 @@ export function App() {
     <IndexContext.Provider value={indexes}>
     <div className="app">
       <Header
+        editable={editable}
+        databaseStatus={LOCAL_EDITOR && <div className="database-status">
+          <span role="status">{!ready ? 'Database unavailable' : saving ? 'Saving…' : dirty ? 'Unsaved changes' : 'Database saved'}</span>
+          <button className="btn" disabled={!editable || !dirty || saving} onClick={() => void saveDatabase()}>Save Database</button>
+        </div>}
         onHelp={() => setDialog('help')}
         onAdd={() => setEditing('new')}
       />
@@ -155,6 +163,7 @@ export function App() {
           onFilters={setFilters}
           selectedCount={selected.length}
           onManage={setIndexManager}
+          editable={editable}
         />
         <div className="workspace-content">
           {view === 'materials' && (
@@ -195,6 +204,7 @@ export function App() {
               />
               {libraryMode === 'table' ? (
                 <MaterialTable
+                  editable={editable}
                   rows={rows}
                   total={materials.length}
                   columns={cols.visible}
@@ -250,6 +260,7 @@ export function App() {
 
       {detail && !editing && !deleting && (
         <MaterialDrawer
+          editable={editable}
           material={detail}
           units={units}
           onClose={() => setDetailId(null)}
@@ -257,12 +268,12 @@ export function App() {
           onDelete={() => setDeleting(detail)}
           onSaveCurve={(data) => {
             const error = setCurve(detail.id, data);
-            if (!error) setNotice(`已儲存 ${detail.name} 的完整 Stress–strain curve。`);
+            if (!error) setNotice(`已更新 ${detail.name} 的完整曲線草稿；請按 Save Database。`);
             return error;
           }}
         />
       )}
-      {editing && (
+      {editing && editable && (
         <MaterialForm
           key={editing === 'new' ? 'new' : editing.id}
           initial={editing === 'new' ? null : editing}
@@ -271,14 +282,14 @@ export function App() {
           onClose={() => setEditing(null)}
         />
       )}
-      {deleting && (
+      {deleting && editable && (
         <ConfirmDelete
           material={deleting}
           onConfirm={confirmDelete}
           onClose={() => setDeleting(null)}
         />
       )}
-      {indexManager && (
+      {indexManager && editable && (
         <IndexManager
           kind={indexManager}
           materials={materials}
@@ -298,16 +309,23 @@ export function App() {
       )}
       {dialog === 'io' && (
         <ImportExportDialog
+          editable={editable}
+          database={database}
+          onRecover={importDatabase}
+          onLegacy={showLegacy}
           materials={materials}
           visibleRows={rows}
           onImport={importMany}
           onReset={() => {
-            resetToSamples();
+            discardDraft();
             setSelected([]);
           }}
           onClose={() => setDialog(null)}
         />
       )}
+
+      {legacy && <LegacyRecovery recovery={legacy} editable={editable} onImport={importLegacy} onClose={dismissLegacy} />}
+      {saveError && <div className="database-save-error" role="alert">{saveError} 變更未寫入；可從「匯入 / 匯出」下載草稿備份。</div>}
 
       {notice && (
         <div className="toast" role="status">

@@ -1,5 +1,5 @@
 node_modules/
-dist/
+# Temporary raw.githack preview branch intentionally tracks dist/.
 .env
 .env.*
 *.local
@@ -11,3 +11,6 @@ Thumbs.db
 coverage/
 __pycache__/
 *.pyc
+data/backups/
+src/data/*.tmp
+src/data/*.lock

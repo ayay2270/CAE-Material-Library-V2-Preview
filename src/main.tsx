@@ -4,6 +4,7 @@ import { App } from './App';
 import './styles.css';
 import './workspace.css';
 import './material-options.css';
+import './database-status.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

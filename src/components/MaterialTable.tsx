@@ -10,6 +10,7 @@ import type { SortKey, SortState } from '../lib/sort';
 import { EditIcon, SortArrows, TrashIcon } from './icons';
 
 interface Props {
+  editable: boolean;
   rows: Material[];
   total: number;
   columns: ColId[];
@@ -82,7 +83,7 @@ export function MaterialTable(p: Props) {
     }
   };
 
-  const colSpan = p.columns.length + 3;
+  const colSpan = p.columns.length + (p.editable ? 3 : 2);
 
   return (
     <div className="table-wrap">
@@ -103,7 +104,7 @@ export function MaterialTable(p: Props) {
               </th>
               <th className="col-idx sticky s1">#</th>
               {p.columns.map(header)}
-              <th className="col-actions">Actions</th>
+              {p.editable && <th className="col-actions">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -124,14 +125,14 @@ export function MaterialTable(p: Props) {
                   </td>
                   <td className="col-idx sticky s1">{i + 1}</td>
                   {p.columns.map((id) => cell(id, m))}
-                  <td className="col-actions" onClick={(e) => e.stopPropagation()}>
+                  {p.editable && <td className="col-actions" onClick={(e) => e.stopPropagation()}>
                     <button className="icon-btn" onClick={() => p.onEdit(m)} aria-label={`編輯 ${m.name}`} title="編輯">
                       <EditIcon />
                     </button>
                     <button className="icon-btn danger" onClick={() => p.onDelete(m)} aria-label={`刪除 ${m.name}`} title="刪除">
                       <TrashIcon />
                     </button>
-                  </td>
+                  </td>}
                 </tr>
               );
             })}

@@ -18,45 +18,6 @@ export function defaultIndexes(): MaterialIndexes {
     sources: [],
   };
 }
-export function loadIndexes(): MaterialIndexes {
-  try {
-    const value = JSON.parse(localStorage.getItem(INDEX_KEY) || 'null');
-    if (
-      value &&
-      Array.isArray(value.categories) &&
-      Array.isArray(value.sources)
-    ) {
-      const base = defaultIndexes();
-      const categories = value.categories.filter(
-        (c: { id?: unknown; label?: unknown; color?: unknown }) =>
-          c &&
-          typeof c.id === 'string' &&
-          c.id &&
-          c.id !== 'all' &&
-          typeof c.label === 'string' &&
-          c.label.trim() &&
-          typeof c.color === 'string' &&
-          /^#[0-9a-f]{6}$/i.test(c.color),
-      );
-      for (const c of base.categories)
-        if (!categories.some((item: { id: string }) => item.id === c.id))
-          categories.push(c);
-      return {
-        categories,
-        sources: [
-          ...new Set<string>(
-            value.sources.filter(
-              (s: unknown) => typeof s === 'string' && s.trim() && s !== 'all',
-            ),
-          ),
-        ],
-      };
-    }
-  } catch {
-    /* Existing materials still supply their categories/sources. */
-  }
-  return defaultIndexes();
-}
 export function deriveIndexes(
   materials: Material[],
   saved: MaterialIndexes,
@@ -136,26 +97,6 @@ export function changeIndex(
   };
 }
 
-/** Best-effort rollback prevents half-applied material/index writes on quota errors. */
-export function persistTogether(entries: [string, string][]): boolean {
-  const previous: [string, string | null][] = [];
-  try {
-    for (const [key] of entries)
-      previous.push([key, localStorage.getItem(key)]);
-    for (const [key, value] of entries) localStorage.setItem(key, value);
-    return true;
-  } catch {
-    for (const [key, value] of previous) {
-      try {
-        if (value === null) localStorage.removeItem(key);
-        else localStorage.setItem(key, value);
-      } catch {
-        /* Storage unavailable. */
-      }
-    }
-    return false;
-  }
-}
 export const IndexContext = createContext<MaterialIndexes>(defaultIndexes());
 export function useIndexes() {
   const indexes = useContext(IndexContext);
