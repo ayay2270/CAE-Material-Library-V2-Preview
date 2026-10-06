@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Material, MaterialInput, View } from './types';
 import { useMaterials } from './lib/storage';
 import { LOCAL_EDITOR } from './lib/masterDatabase';
+import { requestLocalEditing } from './lib/localEditing';
+import { LocalEditingDialog } from './components/LocalEditingDialog';
 import { LegacyRecovery } from './components/LegacyRecovery';
 import { useColumnPrefs } from './lib/columns';
 import { DEFAULT_UNITS } from './lib/format';
@@ -31,7 +33,7 @@ import {
   MapInfoDialog,
 } from './components/Dialogs';
 
-type Dialog = 'help' | 'io' | 'mapInfo' | null;
+type Dialog = 'help' | 'io' | 'mapInfo' | 'localEditing' | null;
 
 export function App() {
   const { materials, add, update, remove, importMany, discardDraft, setCurve, indexes, editIndex,
@@ -142,18 +144,20 @@ export function App() {
   const openDetail = (m: Material) => setDetailId(m.id);
 
   const navigate = (v: View) => setView(v);
+  const showLocalEditing = () => setDialog('localEditing');
+  const requestEdit = (action: () => void) => requestLocalEditing(editable, action, showLocalEditing);
 
   return (
     <IndexContext.Provider value={indexes}>
     <div className="app">
       <Header
         editable={editable}
-        databaseStatus={LOCAL_EDITOR && <div className="database-status">
+        databaseStatus={LOCAL_EDITOR ? <div className="database-status">
           <span role="status">{!ready ? 'Database unavailable' : saving ? 'Saving…' : dirty ? 'Unsaved changes' : 'Database saved'}</span>
           <button className="btn" disabled={!editable || !dirty || saving} onClick={() => void saveDatabase()}>Save Database</button>
-        </div>}
+        </div> : <span className="muted small">Local editing only</span>}
         onHelp={() => setDialog('help')}
-        onAdd={() => setEditing('new')}
+        onAdd={() => requestEdit(() => setEditing('new'))}
       />
       <div className="workspace-shell">
         <Sidebar
@@ -215,8 +219,8 @@ export function App() {
                   onToggle={toggle}
                   onClearSelection={() => setSelected([])}
                   onOpen={openDetail}
-                  onEdit={(m) => setEditing(m)}
-                  onDelete={(m) => setDeleting(m)}
+                  onEdit={(m) => requestEdit(() => setEditing(m))}
+                  onDelete={(m) => requestEdit(() => setDeleting(m))}
                   units={units}
                   activeId={detailId}
                 />
@@ -267,8 +271,8 @@ export function App() {
           material={detail}
           units={units}
           onClose={() => setDetailId(null)}
-          onEdit={() => setEditing(detail)}
-          onDelete={() => setDeleting(detail)}
+          onEdit={() => requestEdit(() => setEditing(detail))}
+          onDelete={() => requestEdit(() => setDeleting(detail))}
           onSaveCurve={(data) => {
             const error = setCurve(detail.id, data);
             if (!error) setNotice(`已更新 ${detail.name} 的完整曲線草稿；請按 Save Database。`);
@@ -307,6 +311,7 @@ export function App() {
         />
       )}
       {dialog === 'help' && <HelpDialog onClose={() => setDialog(null)} />}
+      {dialog === 'localEditing' && <LocalEditingDialog onClose={() => setDialog(null)} />}
       {dialog === 'mapInfo' && (
         <MapInfoDialog onClose={() => setDialog(null)} />
       )}
@@ -314,6 +319,7 @@ export function App() {
         <ImportExportDialog
           editable={editable}
           database={database}
+          onReadOnly={showLocalEditing}
           onRecover={importDatabase}
           onLegacy={showLegacy}
           materials={materials}

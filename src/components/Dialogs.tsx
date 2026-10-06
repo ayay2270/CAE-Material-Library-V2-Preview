@@ -6,6 +6,7 @@ import { DownloadIcon, UploadIcon } from './icons';
 import { downloadJson } from '../lib/legacy';
 import { validateDatabase, type MasterDatabase } from '../lib/database-schema.mjs';
 import { LOCAL_EDITOR } from '../lib/masterDatabase';
+import { requestLocalEditing } from '../lib/localEditing';
 
 export function ConfirmDelete({ material, onConfirm, onClose }: { material: Material; onConfirm: () => void; onClose: () => void }) {
   return (
@@ -38,6 +39,7 @@ export function ImportExportDialog({
   database,
   onRecover,
   onLegacy,
+  onReadOnly,
 }: {
   materials: Material[];
   visibleRows: Material[];
@@ -48,6 +50,7 @@ export function ImportExportDialog({
   database: MasterDatabase;
   onRecover: (value: unknown) => void;
   onLegacy: () => void;
+  onReadOnly: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const recoveryRef = useRef<HTMLInputElement>(null);
@@ -89,15 +92,16 @@ export function ImportExportDialog({
           </button>
         </div>
       </section>
-      {editable && <section className="io-block">
+      <section className="io-block">
         <h3>匯入</h3>
         <p className="muted">
           請使用本工具匯出的檔案格式（欄位：Name、Category、各性質欄位、Source、Notes）。名稱相同的列會更新該材料，其餘新增；空白欄位維持「—」。
         </p>
-        <input ref={fileRef} type="file" accept=".csv,text/csv" hidden data-testid="csv-input" onChange={(e) => onFile(e.target.files?.[0])} />
-        <button className="btn" onClick={() => fileRef.current?.click()}>
+        {editable && <input ref={fileRef} type="file" accept=".csv,text/csv" hidden data-testid="csv-input" onChange={(e) => onFile(e.target.files?.[0])} />}
+        <button className="btn" title={editable ? '匯入 CSV' : 'Local editing only'} onClick={() => requestLocalEditing(editable, () => fileRef.current?.click(), onReadOnly)}>
           <UploadIcon /> 選擇 CSV 檔案…
         </button>
+        {editable && <>
         {message && (
           <div className={`notice ${message.kind}`} role="status">
             {message.text}
@@ -123,7 +127,8 @@ export function ImportExportDialog({
           try { onRecover(pendingRecovery); setPendingRecovery(null); setMessage({ kind: 'ok', text: '已回復為草稿，請按 Save Database。' }); }
           catch (error) { setMessage({ kind: 'err', text: error instanceof Error ? error.message : '資料無效，未回復。' }); }
         }}>確認回復草稿</button> <button className="btn" onClick={() => setPendingRecovery(null)}>取消</button></p>}
-      </section>}
+        </>}
+      </section>
       {!editable && <p className="muted">GitHub Pages = 唯讀資料庫檢視器。CSV／JSON 匯入、材料及索引編輯請使用本機 npm run dev。</p>}
       {editable && <section className="io-block">
         <h3>未儲存草稿</h3>

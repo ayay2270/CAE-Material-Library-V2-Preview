@@ -83,7 +83,7 @@ export function MaterialTable(p: Props) {
     }
   };
 
-  const colSpan = p.columns.length + (p.editable ? 3 : 2);
+  const colSpan = p.columns.length + 3;
 
   return (
     <div className="table-wrap">
@@ -104,7 +104,7 @@ export function MaterialTable(p: Props) {
               </th>
               <th className="col-idx sticky s1">#</th>
               {p.columns.map(header)}
-              {p.editable && <th className="col-actions">Actions</th>}
+              <th className="col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -125,14 +125,14 @@ export function MaterialTable(p: Props) {
                   </td>
                   <td className="col-idx sticky s1">{i + 1}</td>
                   {p.columns.map((id) => cell(id, m))}
-                  {p.editable && <td className="col-actions" onClick={(e) => e.stopPropagation()}>
-                    <button className="icon-btn" onClick={() => p.onEdit(m)} aria-label={`編輯 ${m.name}`} title="編輯">
+                  <td className="col-actions" onClick={(e) => e.stopPropagation()}>
+                    <button className="icon-btn" onClick={() => p.onEdit(m)} aria-label={`編輯 ${m.name}`} title={p.editable ? '編輯' : '編輯 · Local editing only'}>
                       <EditIcon />
                     </button>
-                    <button className="icon-btn danger" onClick={() => p.onDelete(m)} aria-label={`刪除 ${m.name}`} title="刪除">
+                    <button className="icon-btn danger" onClick={() => p.onDelete(m)} aria-label={`刪除 ${m.name}`} title={p.editable ? '刪除' : '刪除 · Local editing only'}>
                       <TrashIcon />
                     </button>
-                  </td>}
+                  </td>
                 </tr>
               );
             })}

@@ -94,7 +94,7 @@ On failure, the draft remains in memory and an error is shown. Export the comple
 
 `npm run build` (or `npm run build:pages`) embeds the Git JSON into static `dist/` assets with Pages base **`/CAE-Material-Library-V2-Preview/`**. `npm run build:preview` is available for relative-path static snapshots. Websites display the deployed snapshot; a new commit becomes visible after deployment and browser reload. `npm run preview` is also read-only.
 
-Production hides material/index/curve editing and CSV/JSON import. Browsing, searching, filtering, comparison, Material Map, details and exports remain available. The production build contains no local API client or filesystem writer; preview has no write middleware. Only `dist/` is deployed. No GitHub token, external backend, Supabase or Firebase is required.
+Production keeps Add Material, Edit, Delete and Import CSV controls visible with a subtle **Local editing only** indication. Clicking them opens instructions to run `npm run dev`, edit, use Save Database, then manually commit/push; it does not open an editor, upload a CSV or change material data. Index/curve editing and JSON recovery remain local-only. Browsing, searching, filtering, comparison, Material Map, details and exports remain available. The production build contains no local API client or filesystem writer; preview has no write middleware. Only `dist/` is deployed. No GitHub token, external backend, Supabase or Firebase is required.
 
 ## Legacy localStorage recovery
 
@@ -109,13 +109,15 @@ Pages and localhost have different origins. Download the complete JSON backup on
 
 ## CSV, curves and engineering
 
-Existing CSV name matching, null handling and import history are unchanged. Local CSV import → memory draft → Save Database → Git JSON. Production keeps export and hides import.
+Existing CSV name matching, null handling and import history are unchanged. Local CSV import → memory draft → Save Database → Git JSON. Production keeps export; its visible CSV import button opens local-editing guidance without loading a file or changing data.
 
 Material CSV includes **Stress-Strain Curve JSON**, preserving all points/order, definitions, source and notes; old CSV without the curve column preserves saved curves when updating materials. CSV does not retain IDs/full history/index labels/unused items: use complete JSON export for lossless database backup.
 
 **Detail → 材料曲線** still supports paste or CSV/TSV input, units/definitions, preview, save, edit and export locally. Pages supports viewing/export. Curves remain mm/mm and MPa internally; the old application did not store original input-unit selections. Additional curve metadata present in JSON survives saving. Separate curve CSV exports all numerical points in base units; material CSV/JSON also preserves definitions/metadata.
 
 Material values remain in mm–t–N–s (density t/mm³, stress MPa, elongation %). Display conversions, stress/strain definitions, ETAN and solver calculations, Density Tuner, comparison and Material Map behavior from the latest main are retained. The storage merge does not change their formulas. Header artwork and photo credits (`src/assets/CREDITS.md`) are unchanged.
+
+Solver Plasticity always calculates the original bilinear **Calculated H** from E, yield stress, ultimate stress and elongation, including all substituted engineering/true stress and strain steps under **Show calculation details**. When **Stored H** exists, the calculated estimate is reference only: Stored H remains the active OptiStruct MATS1 Work Hardening Slope. Without Stored H, Calculated H becomes active. **H source** identifies which value feeds LS-DYNA MAT_003 `ETAN = E × H / (E + H)`; the reverse reference is `H = ETAN / (1 − ETAN / E)`. For E = 200000 MPa and Stored H = 740.06 MPa, ETAN rounds to 737.33 MPa. Calculations retain full precision; the historical JSON/CSV field `etan` still stores H for compatibility and is never overwritten by the estimate or conversion.
 
 ## Checks and deployment
 

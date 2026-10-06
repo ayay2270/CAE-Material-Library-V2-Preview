@@ -12,6 +12,35 @@ const { hToEtan, etanToH, solverPlasticityParameters } = await loadModule('../sr
 const { csvToMaterials, toCsv } = await loadModule('../src/lib/csv.ts');
 const sgcc = { youngsModulus: 200000, yieldStress: 250, ultimateStress: 356, elongation: 40 };
 
+test('calculated H and every original intermediate remain available with authoritative stored H', () => {
+  const material = Object.freeze({ ...sgcc, etan: 740.06 });
+  const result = solverPlasticityParameters(material, material.etan);
+  assert.equal(result.hardeningSlopeH, material.etan);
+  assert.equal(result.tangentModulusEtan.toFixed(2), '737.33');
+  assert.equal(result.calculatedH.toFixed(2), '740.07');
+  assert.notEqual(result.calculatedH, result.hardeningSlopeH);
+  assert.deepEqual(result.calculatedHDetails, {
+    eyEng: 250 / 200000, euEng: 40 / 100,
+    syTrue: 250 * (1 + 250 / 200000), suTrue: 356 * (1 + 40 / 100),
+    eyTrue: Math.log1p(250 / 200000), euTrue: Math.log1p(40 / 100),
+    deltaStrain: Math.log1p(40 / 100) - Math.log1p(250 / 200000),
+    deltaStress: 356 * (1 + 40 / 100) - 250 * (1 + 250 / 200000),
+    hardeningSlopeH: (356 * (1 + 40 / 100) - 250 * (1 + 250 / 200000)) / (Math.log1p(40 / 100) - Math.log1p(250 / 200000)),
+  });
+  assert.equal(material.etan, 740.06);
+});
+
+test('missing stored H activates the full precision calculated H; incomplete estimate never replaces stored H', () => {
+  const result = solverPlasticityParameters(sgcc);
+  assert.equal(result.hardeningSlopeH, result.calculatedH);
+  assert.equal(result.tangentModulusEtan, hToEtan(sgcc.youngsModulus, result.calculatedH));
+  const incomplete = solverPlasticityParameters({ ...sgcc, elongation: null }, 740.06);
+  assert.equal(incomplete.calculatedH, null);
+  assert.equal(incomplete.calculatedHDetails, null);
+  assert.equal(incomplete.hardeningSlopeH, 740.06);
+  assert.equal(incomplete.tangentModulusEtan.toFixed(2), '737.33');
+});
+
 test('E = 200000 MPa, supplied H = 740.06 MPa converts to ETAN = 737.33 MPa', () => {
   const tangentModulusEtan = hToEtan(200000, 740.06);
   assert.equal(tangentModulusEtan.toFixed(2), '737.33');

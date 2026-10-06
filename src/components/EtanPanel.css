@@ -91,3 +91,4 @@
   .etan-page .etan-inputs { grid-template-columns: 1fr; }
   .etan-page .etan-pick select { width: 100%; min-width: 0; }
 }
+.solver-reference-estimate { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; }

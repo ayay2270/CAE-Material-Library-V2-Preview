@@ -1,4 +1,4 @@
-import { calcHardeningSlope } from './etan';
+import { calcHardeningSlopeDetails } from './etan';
 import type { HardeningInputs } from './etan';
 
 /** OptiStruct MATS1 H → LS-DYNA MAT_003 ETAN. All moduli are in MPa. */
@@ -20,12 +20,14 @@ export function etanToH(youngsModulus: number, tangentModulusEtan: number): numb
   return Number.isFinite(hardeningSlopeH) ? hardeningSlopeH : null;
 }
 
-/** Prefer the existing supplied H; estimate only when it is absent. Never persist ETAN over H. */
+/** Always calculate the reference estimate; supplied H remains authoritative. Never persist ETAN over H. */
 export function solverPlasticityParameters(inputs: HardeningInputs, providedH: number | null = null) {
+  const calculatedHDetails = calcHardeningSlopeDetails(inputs);
+  const calculatedH = calculatedHDetails?.hardeningSlopeH ?? null;
   const hardeningSource = providedH == null ? 'estimated' : 'provided';
-  const candidateH = providedH == null ? calcHardeningSlope(inputs) : providedH;
+  const candidateH = providedH == null ? calculatedH : providedH;
   const hardeningSlopeH = candidateH != null && Number.isFinite(candidateH) && candidateH >= 0 ? candidateH : null;
   const tangentModulusEtan = hardeningSlopeH != null && inputs.youngsModulus != null
     ? hToEtan(inputs.youngsModulus, hardeningSlopeH) : null;
-  return { hardeningSlopeH, tangentModulusEtan, hardeningSource };
+  return { hardeningSlopeH, tangentModulusEtan, hardeningSource, calculatedH, calculatedHDetails };
 }

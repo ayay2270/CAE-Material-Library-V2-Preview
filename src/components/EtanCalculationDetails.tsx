@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { calcHardeningSlopeDetails } from '../lib/etan';
 import type { HardeningInputs } from '../lib/etan';
 import type { solverPlasticityParameters } from '../lib/solverPlasticity';
 import './EtanPanel.css';
@@ -31,14 +30,14 @@ function HardeningEstimateFormula() {
 
 export function EtanCalculationDetails({ inputs, parameters }: { inputs: HardeningInputs; parameters: ReturnType<typeof solverPlasticityParameters> }) {
   const { hardeningSlopeH, tangentModulusEtan, hardeningSource } = parameters;
-  const result = hardeningSource === 'estimated' ? calcHardeningSlopeDetails(inputs) : null;
+  const result = parameters.calculatedHDetails;
   return (
     <details className="etan-auto-details">
       <summary><span className="etan-show-details">Show calculation details</span><span className="etan-hide-details">Hide calculation details</span></summary>
       <div className="etan-auto-details-body">
         <h4>A. OptiStruct MATS1</h4>
-        <p className="etan-step-value">H = {hardeningSlopeH == null ? 'unavailable' : `${hardeningSlopeH.toFixed(2)} MPa`}</p>
-        <p className="etan-formula-note">{hardeningSource === 'provided' ? 'Uses the existing material Work Hardening Slope (H).' : 'Uses the existing bilinear estimate. The upstream engineering model is unchanged.'}</p>
+        <p className="etan-step-value">{hardeningSource === 'provided' ? 'Stored H' : 'Calculated H'} = {hardeningSlopeH == null ? 'unavailable' : `${hardeningSlopeH.toFixed(2)} MPa`}</p>
+        <p className="etan-formula-note">{hardeningSource === 'provided' ? 'Calculated H is reference only. Stored H remains the active OptiStruct value.' : 'Uses the existing bilinear estimate as active H because Stored H is unavailable. The upstream engineering model is unchanged.'}</p>
         {result ? <ol className="etan-auto-steps">
           <li>
             <h5>Engineering strains</h5>
@@ -50,24 +49,30 @@ export function EtanCalculationDetails({ inputs, parameters }: { inputs: Hardeni
           <li>
             <h5>True stresses</h5>
             <div className="etan-equation"><TrueStress point="y" /></div>
+            <p className="etan-step-value">= {inputs.yieldStress} × (1 + {result.eyEng})</p>
             <p className="etan-step-value">= {result.syTrue.toFixed(3)} MPa</p>
             <div className="etan-equation"><TrueStress point="u" /></div>
+            <p className="etan-step-value">= {inputs.ultimateStress} × (1 + {result.euEng})</p>
             <p className="etan-step-value">= {result.suTrue.toFixed(3)} MPa</p>
           </li>
           <li>
             <h5>True strains</h5>
             <div className="etan-equation"><TrueStrain point="y" /></div>
+            <p className="etan-step-value">= ln(1 + {result.eyEng})</p>
             <p className="etan-step-value">≈ {result.eyTrue.toFixed(6)}</p>
             <div className="etan-equation"><TrueStrain point="u" /></div>
+            <p className="etan-step-value">= ln(1 + {result.euEng})</p>
             <p className="etan-step-value">≈ {result.euTrue.toFixed(6)}</p>
           </li>
           <li>
-            <h5>H — Existing bilinear estimate</h5>
+            <h5>Calculated H — Existing bilinear estimate</h5>
             <div className="etan-equation"><HardeningEstimateFormula /></div>
-            <p className="etan-step-value">≈ {result.hardeningSlopeH.toFixed(2)} MPa</p>
+            <div className="etan-equation">H = <Fraction numerator={`${result.suTrue} − ${result.syTrue}`} denominator={`${result.euTrue} − ${result.eyTrue}`} /></div>
+            <p className="etan-step-value">Calculated H = {result.hardeningSlopeH.toFixed(2)} MPa</p>
           </li>
-        </ol> : hardeningSlopeH == null && <p>Enter valid material values to view the calculated steps.</p>}
+        </ol> : <p>Calculated H unavailable. Enter valid E, Yield Stress, Ultimate Stress and Elongation to view the calculated steps.</p>}
         <h4>B. Convert H → ETAN · LS-DYNA MAT_003</h4>
+        <p className="etan-step-value">H source: {hardeningSource === 'provided' ? 'Stored H' : 'Calculated H'}</p>
         <div className="etan-equation">ETAN = <Fraction numerator="E × H" denominator="E + H" /></div>
         {tangentModulusEtan != null && hardeningSlopeH != null && inputs.youngsModulus != null ? <>
           <p className="etan-step-value">E = {inputs.youngsModulus} MPa; H = {Number(hardeningSlopeH.toFixed(6))} MPa</p>
