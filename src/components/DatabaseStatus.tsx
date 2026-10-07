@@ -1,7 +1,9 @@
 import type { useMaterials } from '../lib/storage';
 import { SYNC_LABELS } from '../lib/githubSync';
 import { UNSUPPORTED_MESSAGE } from '../lib/browserDatabase';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { downloadDeployedDatabase } from '../lib/deployedDatabaseDownload';
+import { DatabaseOnboardingDialog } from './DatabaseOnboardingDialog';
 
 type State = ReturnType<typeof useMaterials>;
 const clock = (value: number | null) => value === null ? '' : new Date(value).toLocaleTimeString('zh-TW', { hour12: false });
@@ -9,6 +11,8 @@ export function DatabaseStatus({ state }: { state: State }) {
   const { fileStatus, fileSupported, developerMode, fileError, fileName, editable, dirty, saving, saveError,
     connectFile, reloadFile, disconnectFile, lastReadAt, lastSavedAt, backupText, github, saveDatabase } = state;
   const linked = fileStatus === 'linked';
+  const showOnboarding = !linked && !developerMode;
+  const [helpOpen, setHelpOpen] = useState(false);
   const menu = useRef<HTMLDetailsElement>(null);
   useEffect(() => { if ((fileError || saveError) && menu.current) menu.current.open = true; }, [fileError, saveError]);
   const label = fileStatus === 'checking' ? '連結中' : linked ? '已連結' : fileStatus === 'permission' ? '需要重新授權' : developerMode ? '本機開發模式' : '尚未連結';
@@ -18,17 +22,28 @@ export function DatabaseStatus({ state }: { state: State }) {
     const link = document.createElement('a'); link.href = url; link.download = 'materials-before-save.json'; link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  return <div className="database-status">
-    <details className="database-status-menu" ref={menu}>
+  const openHelp = () => { if (menu.current) menu.current.open = false; setHelpOpen(true); };
+  return <><div className="database-status">
+    <details className="database-status-menu" ref={menu} open={showOnboarding}>
       <summary>資料庫狀態 · {saving ? '儲存並驗證中' : saveError ? '儲存失敗' : dirty ? '有未儲存變更' : lastSavedAt ? '儲存成功' : label}</summary>
-      <div className="database-status-panel" aria-label="資料庫狀態">
+      <div className="database-status-panel" role="region" aria-label="資料庫狀態">
         <h3>資料庫狀態</h3>
-        <dl>
-          <dt>本機資料庫</dt><dd><b>{label}</b>{fileName && <span>{fileName}</span>}{lastReadAt && <small>最後讀取：{clock(lastReadAt)}</small>}</dd>
-          <dt>本機儲存</dt><dd role="status">{saving ? '儲存並驗證中…' : saveError ? '✕ 儲存失敗' : dirty ? '● 有未儲存變更' : lastSavedAt ? '✓ 儲存成功' : editable ? '● 已儲存' : '尚未連結'}{lastSavedAt && <small>{clock(lastSavedAt)}</small>}</dd>
+        {showOnboarding ? <section className="database-onboarding-intro" aria-label="首次資料庫連結">
+          <p className="database-unlinked">○ 尚未連結本機資料庫</p>
+          <h4>第一次使用？</h4>
+          <div className="database-onboarding-actions">
+            <button className="btn" onClick={downloadDeployedDatabase}>下載目前材料資料庫 JSON</button>
+            <button className="btn primary" disabled={!fileSupported || fileStatus === 'checking' || saving} onClick={() => void connectFile()}>{fileStatus === 'permission' ? '重新授權本機資料庫' : '連結本機資料庫'}</button>
+          </div>
+          <p>若只需要查看或備份資料，可直接下載目前線上資料庫。</p>
+          <p>若要新增、編輯並同步資料至 GitHub，請先使用 GitHub Desktop Clone 此 Repository，再連結：<code className="database-file-path">src/data/materials.json</code></p>
+          <p className="muted small">下載的 JSON 是獨立備份，不會建立 Git 儲存庫，也不會自動 Commit / Push。</p>
+        </section> : <dl>
+          <dt>本機資料庫</dt><dd><b>{linked ? '✓ 已連結' : label}</b>{fileName && <span>{fileName}</span>}{lastReadAt && <small>最後讀取：{clock(lastReadAt)}</small>}</dd>
+          <dt>本機儲存</dt><dd role="status">{saving ? '儲存並驗證中…' : saveError ? '✕ 儲存失敗' : dirty ? '● 有未儲存變更' : lastSavedAt || editable ? '✓ 已儲存' : '尚未連結'}{lastSavedAt && <small>{clock(lastSavedAt)}</small>}</dd>
           <dt>GitHub 同步</dt><dd role="status">{github.status === 'synced' ? '✓ ' : '● '}{SYNC_LABELS[github.status]}{github.status === 'synced' && dirty && <small>僅代表上次儲存版本；草稿尚未儲存。</small>}{github.commit && <small>Commit {github.commit.slice(0, 7)}</small>}{github.checkedAt && <small>檢查時間：{clock(github.checkedAt)}</small>}</dd>
           {github.status === 'synced' && <><dt>GitHub Pages</dt><dd>{github.deployment === 'updated' ? '✓ 線上版已更新（資料庫一致）' : github.deployment === 'waiting' ? '● 等待部署' : '暫時無法確認部署'}</dd></>}
-        </dl>
+        </dl>}
         {(github.status === 'pending' || github.status === 'changed') && <p>{github.status === 'changed' && <b>GitHub 資料與本機不同。 </b>}請使用 GitHub Desktop Commit + Push；若他人已更新資料，請先確認差異，不會自動覆寫任何一方。</p>}
         {github.error && <p role="alert">{github.error}</p>}
         {!fileSupported && <p>{UNSUPPORTED_MESSAGE}</p>}
@@ -42,10 +57,11 @@ export function DatabaseStatus({ state }: { state: State }) {
           <button className="btn" disabled={dirty || saving} onClick={() => void disconnectFile()}>中斷連結</button>
         </div>}
         {backupText && <button className="btn" onClick={downloadBackup}>下載寫入前備份</button>}
-        <p className="muted small">連結的檔案仍是 Git 主資料庫。網站只儲存本機檔案，不會自動 Commit 或 Push。</p>
+        <button className="database-help-link" onClick={openHelp}>{showOnboarding ? '第一次使用 / 如何開始' : '使用說明'}</button>
+        {!showOnboarding && <p className="muted small">連結的檔案仍是 Git 主資料庫。網站只儲存本機檔案，不會自動 Commit 或 Push。</p>}
       </div>
     </details>
-    {(!linked && fileSupported) && <button className="btn" disabled={fileStatus === 'checking' || saving} onClick={() => void connectFile()}>{fileStatus === 'permission' ? '重新授權' : '連結本機資料庫'}</button>}
+    {(!linked && fileSupported && !showOnboarding) && <button className="btn" disabled={fileStatus === 'checking' || saving} onClick={() => void connectFile()}>{fileStatus === 'permission' ? '重新授權' : '連結本機資料庫'}</button>}
     {editable && <button className="btn" disabled={!dirty || saving} onClick={() => void saveDatabase()}>Save Database</button>}
-  </div>;
+  </div>{helpOpen && <DatabaseOnboardingDialog supported={fileSupported} onClose={() => setHelpOpen(false)} onConnect={() => { setHelpOpen(false); void connectFile(); }} />}</>;
 }

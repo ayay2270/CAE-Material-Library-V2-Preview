@@ -16,7 +16,23 @@
 .database-status-panel .btn { margin-top: 6px; }
 .database-file-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .database-save-error { position: fixed; z-index: 110; top: 90px; right: 20px; max-width: min(480px, 90vw); padding: 10px 14px; border: 1px solid #fca5a5; border-radius: 4px; background: #fff1f2; color: #991b1b; font-size: 13px; }
+.database-onboarding-intro h4 { margin: 10px 0 6px; font-size: 13px; }
+.database-status-panel .database-unlinked { margin-top: 0; }
+.database-onboarding-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.database-onboarding-actions .btn { max-width: 100%; height: auto; min-height: 32px; white-space: normal; text-align: center; }
+.database-file-path { display: block; margin-top: 4px; overflow-wrap: anywhere; color: var(--ink); }
+.database-help-link { display: inline-block; border: 0; padding: 8px 0; background: none; color: var(--workspace-blue); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
+.database-onboarding-paths { display: flex; flex-direction: column; gap: 14px; font-size: 13px; line-height: 1.6; }
+.database-onboarding-path { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
+.database-onboarding-path h3 { margin: 0 0 8px; font-size: 14px; color: var(--navy); }
+.database-onboarding-path ol { margin: 0 0 10px; padding-left: 22px; }
+.database-onboarding-path li { padding-left: 2px; margin-bottom: 4px; }
+.database-onboarding-path code { overflow-wrap: anywhere; }
+.database-onboarding-path .small { margin-top: 8px; }
 @media (max-width: 800px) {
   .database-status { flex-direction: column; gap: 2px; }
   .database-status .btn { font-size: 11px; padding: 0 6px; }
+}
+@media (max-width: 550px) {
+  .database-status-panel { position: fixed; top: 70px; right: 10px; width: calc(100vw - 20px); max-height: calc(100dvh - 90px); }
 }
