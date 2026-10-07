@@ -41,10 +41,11 @@ const state = {
   github: { status: 'idle', deployment: 'idle', error: null, commit: '', checkedAt: null, check() {} },
 };
 
-test('first-time status opens one screen with download, connection and Clone guidance', () => {
+test('first-time status stays concise with download, connection and setup help', () => {
   const html = ui.status(state);
   assert.match(html, /<details[^>]*open=""/);
-  for (const text of ['資料庫狀態', '○ 尚未連結本機資料庫', '第一次使用？', '下載目前材料資料庫 JSON', '連結本機資料庫', 'GitHub Desktop Clone', 'src/data/materials.json', '獨立備份', '不會建立 Git 儲存庫', '第一次使用 / 如何開始']) assert.ok(html.includes(text), text);
+  for (const text of ['資料庫狀態', '○ 尚未連結本機資料庫', '第一次使用？', '下載目前材料資料庫 JSON', '連結本機資料庫', '先把專案複製到電腦', 'src/data/materials.json', '獨立備份', '不會建立 Git 儲存庫', '第一次使用？查看設定步驟']) assert.ok(html.includes(text), text);
+  for (const text of ['File → Clone repository', 'Commit to main', '第一次使用這台電腦', '修改完成後', '之後每次使用']) assert.equal(html.includes(text), false, 'full tutorial belongs in help: ' + text);
   assert.equal(html.includes('npm run dev'), false);
   const unsupported = ui.status({ ...state, fileSupported: false, fileStatus: 'unsupported' });
   assert.match(unsupported, /disabled=""[^>]*>連結本機資料庫/);
@@ -54,7 +55,7 @@ test('first-time status opens one screen with download, connection and Clone gui
 test('connected status stays compact and preserves save, sync and deployment controls', () => {
   const html = ui.status({ ...state, fileStatus: 'linked', fileName: 'materials.json', editable: true, lastSavedAt: 1,
     github: { ...state.github, status: 'synced', deployment: 'updated', commit: 'a'.repeat(40) } });
-  for (const text of ['✓ 已連結', 'materials.json', '✓ 已儲存', '已同步至 GitHub', '線上版已更新', 'Save Database', '檢查 GitHub 同步', '重新讀取本機資料庫', '中斷連結', '使用說明']) assert.ok(html.includes(text), text);
+  for (const text of ['✓ 已連結', 'materials.json', '✓ 儲存成功', '已同步至 GitHub', '線上版已更新', 'Save Database', '檢查 GitHub 同步', '重新讀取本機資料庫', '中斷連結', '使用說明']) assert.ok(html.includes(text), text);
   for (const text of ['第一次使用？', 'GitHub Desktop Clone', '下載目前材料資料庫 JSON']) assert.equal(html.includes(text), false, text);
   assert.doesNotMatch(html, /<details[^>]*open=""/);
   const dirty = ui.status({ ...state, fileStatus: 'linked', editable: true, dirty: true });
@@ -63,14 +64,40 @@ test('connected status stays compact and preserves save, sync and deployment con
   assert.ok(permission.includes('重新授權本機資料庫'));
 });
 
-test('Chinese help separates standalone backup from Clone/link/save/Commit/Push and links the repository', () => {
+test('Chinese help distinguishes JSON backup from a cloned project and links the repository', () => {
   const html = ui.help(true);
-  for (const text of ['只想查看 / 備份', '我要新增 / 編輯材料', '無需 Clone', 'GitHub Desktop Clone', 'src/data/materials.json', 'Save Database', 'Commit', 'Push origin', '已同步至 GitHub', '不是剛下載的獨立 JSON', '開啟 GitHub Repository']) {
+  for (const text of ['只想查看 / 備份', '我要新增 / 編輯材料', '不需要先把專案複製到電腦', 'GitHub Desktop Clone', 'src/data/materials.json', '下載的獨立 JSON 不會自動與 GitHub Repository 綁定', '不是用來直接 Push 到 GitHub', '真正的本機 Git Repository', '開啟 GitHub Repository']) {
     assert.ok(html.includes(text), text);
   }
   assert.ok(html.includes('https://github.com/ayay2270/CAE-Material-Library-V2-Preview'));
   assert.ok(html.includes('noopener noreferrer'));
   assert.equal(html.includes('npm run dev'), false);
+  assert.equal(html.includes('Git 追蹤檔案'), false);
+});
+
+test('help separates one-time setup, post-edit upload and daily use with accurate status meanings', () => {
+  const html = ui.help(true);
+  const setup = html.split('aria-label="第一次使用這台電腦"')[1].split('</section>')[0];
+  const upload = html.split('aria-label="修改完成後"')[1].split('</section>')[0];
+  const daily = html.split('aria-label="之後每次使用"')[1].split('</section>')[0];
+  assert.ok(html.includes('Clone = 把 GitHub 上的專案複製到你的電腦，並保留與 GitHub 的版本同步關係。'));
+  for (const text of ['登入 GitHub 帳號', 'File → Clone repository', 'ayay2270/CAE-Material-Library-V2-Preview', 'C:\\Users\\你的帳號\\Documents\\GitHub\\', '└─ src', '└─ data', '└─ materials.json', '連結本機資料庫', '允許網站讀取與寫入', '✓ 已連結']) assert.ok(setup.includes(text), text);
+  assert.equal((setup.match(/<li>/g) || []).length, 9);
+  let position = -1;
+  for (const text of ['Save Database', '✓ 儲存成功', '還沒有上傳到 GitHub', 'Changes', 'src/data/materials.json', 'Summary', 'Update material database', 'Commit to main', 'Push origin', '檢查 GitHub 同步', '✓ 已同步至 GitHub', '✓ 線上版已更新', '其他電腦重新整理網站後']) {
+    const next = upload.indexOf(text);
+    assert.ok(next > position, 'upload order: ' + text);
+    position = next;
+  }
+  assert.equal((upload.match(/<li>/g) || []).length, 11);
+  const dailySteps = daily.split('<ol')[1];
+  assert.equal(dailySteps.includes('Clone'), false);
+  position = -1;
+  for (const text of ['Fetch / Pull', '開啟 CAE Material Library', '新增／編輯材料', 'Save Database', 'GitHub Desktop Commit', 'Push origin', '檢查 GitHub 同步']) {
+    const next = dailySteps.indexOf(text);
+    assert.ok(next > position, 'daily order: ' + text);
+    position = next;
+  }
 });
 
 test('download exports the complete deployed document, never stale storage or a draft', async () => {

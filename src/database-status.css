@@ -29,6 +29,11 @@
 .database-onboarding-path li { padding-left: 2px; margin-bottom: 4px; }
 .database-onboarding-path code { overflow-wrap: anywhere; }
 .database-onboarding-path .small { margin-top: 8px; }
+.database-onboarding-step-group { margin-top: 16px; }
+.database-onboarding-step-group h4 { margin: 0 0 8px; font-size: 13px; color: var(--navy); }
+.database-onboarding-tree { margin: 6px 0; padding: 8px; background: var(--head-bg); border-radius: var(--radius); overflow: auto; font-size: 12px; line-height: 1.6; }
+.database-onboarding-daily { list-style: none; padding-left: 0 !important; }
+.database-onboarding-daily li + li::before { content: '↓'; display: block; color: var(--ink-2); }
 @media (max-width: 800px) {
   .database-status { flex-direction: column; gap: 2px; }
   .database-status .btn { font-size: 11px; padding: 0 6px; }

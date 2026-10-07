@@ -36,11 +36,11 @@ export function DatabaseStatus({ state }: { state: State }) {
             <button className="btn primary" disabled={!fileSupported || fileStatus === 'checking' || saving} onClick={() => void connectFile()}>{fileStatus === 'permission' ? '重新授權本機資料庫' : '連結本機資料庫'}</button>
           </div>
           <p>若只需要查看或備份資料，可直接下載目前線上資料庫。</p>
-          <p>若要新增、編輯並同步資料至 GitHub，請先使用 GitHub Desktop Clone 此 Repository，再連結：<code className="database-file-path">src/data/materials.json</code></p>
+          <p>若要新增、編輯並上傳到 GitHub，請先把專案複製到電腦，再連結專案中的：<code className="database-file-path">src/data/materials.json</code>第一次設定請查看下方步驟。</p>
           <p className="muted small">下載的 JSON 是獨立備份，不會建立 Git 儲存庫，也不會自動 Commit / Push。</p>
         </section> : <dl>
           <dt>本機資料庫</dt><dd><b>{linked ? '✓ 已連結' : label}</b>{fileName && <span>{fileName}</span>}{lastReadAt && <small>最後讀取：{clock(lastReadAt)}</small>}</dd>
-          <dt>本機儲存</dt><dd role="status">{saving ? '儲存並驗證中…' : saveError ? '✕ 儲存失敗' : dirty ? '● 有未儲存變更' : lastSavedAt || editable ? '✓ 已儲存' : '尚未連結'}{lastSavedAt && <small>{clock(lastSavedAt)}</small>}</dd>
+          <dt>本機儲存</dt><dd role="status">{saving ? '儲存並驗證中…' : saveError ? '✕ 儲存失敗' : dirty ? '● 有未儲存變更' : lastSavedAt ? '✓ 儲存成功' : editable ? '✓ 已儲存' : '尚未連結'}{lastSavedAt && <small>{clock(lastSavedAt)}</small>}</dd>
           <dt>GitHub 同步</dt><dd role="status">{github.status === 'synced' ? '✓ ' : '● '}{SYNC_LABELS[github.status]}{github.status === 'synced' && dirty && <small>僅代表上次儲存版本；草稿尚未儲存。</small>}{github.commit && <small>Commit {github.commit.slice(0, 7)}</small>}{github.checkedAt && <small>檢查時間：{clock(github.checkedAt)}</small>}</dd>
           {github.status === 'synced' && <><dt>GitHub Pages</dt><dd>{github.deployment === 'updated' ? '✓ 線上版已更新（資料庫一致）' : github.deployment === 'waiting' ? '● 等待部署' : '暫時無法確認部署'}</dd></>}
         </dl>}
@@ -57,8 +57,8 @@ export function DatabaseStatus({ state }: { state: State }) {
           <button className="btn" disabled={dirty || saving} onClick={() => void disconnectFile()}>中斷連結</button>
         </div>}
         {backupText && <button className="btn" onClick={downloadBackup}>下載寫入前備份</button>}
-        <button className="database-help-link" onClick={openHelp}>{showOnboarding ? '第一次使用 / 如何開始' : '使用說明'}</button>
-        {!showOnboarding && <p className="muted small">連結的檔案仍是 Git 主資料庫。網站只儲存本機檔案，不會自動 Commit 或 Push。</p>}
+        <button className="database-help-link" onClick={openHelp}>{showOnboarding ? '第一次使用？查看設定步驟' : '使用說明'}</button>
+        {!showOnboarding && <p className="muted small">網站只更新你電腦裡的 materials.json；上傳到 GitHub 仍需在 GitHub Desktop Commit，再 Push origin。</p>}
       </div>
     </details>
     {(!linked && fileSupported && !showOnboarding) && <button className="btn" disabled={fileStatus === 'checking' || saving} onClick={() => void connectFile()}>{fileStatus === 'permission' ? '重新授權' : '連結本機資料庫'}</button>}
