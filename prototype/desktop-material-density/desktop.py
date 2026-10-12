@@ -9,26 +9,60 @@ from pathlib import Path
 import webview
 
 
-ROOT = Path(__file__).resolve().parent
-REPO_ROOT = ROOT.parent.parent
-MATERIALS_JSON = REPO_ROOT / "src" / "data" / "materials.json"
-HM_PROBE_RESULT = ROOT / "hm_probe_result.json"
+DEV_ROOT = Path(__file__).resolve().parent
+IS_FROZEN = bool(getattr(sys, "frozen", False))
+APP_DIR = Path(sys.executable).resolve().parent if IS_FROZEN else DEV_ROOT
+BUNDLE_ROOT = Path(getattr(sys, "_MEIPASS", DEV_ROOT))
+
+if IS_FROZEN:
+    BUNDLED_MATERIALS_JSON = BUNDLE_ROOT / "data" / "materials.json"
+    EXTERNAL_MATERIALS_JSON = APP_DIR / "data" / "materials.json"
+else:
+    REPO_ROOT = DEV_ROOT.parent.parent
+    BUNDLED_MATERIALS_JSON = REPO_ROOT / "src" / "data" / "materials.json"
+    EXTERNAL_MATERIALS_JSON = BUNDLED_MATERIALS_JSON
+
+HM_PROBE_RESULT = APP_DIR / "hm_probe_result.json"
 
 
 class MaterialToolboxApi:
-    """Safe pywebview proof-of-concept.
+    """Offline-first pywebview backend.
 
-    This bridge reads the existing materials.json and exposes Desktop-only actions.
-    It does NOT modify HyperMesh yet. Apply buttons are intentionally Dry Run.
+    Normal Material Library and Density Tuner functions are fully local.
+    HyperMesh integration remains read-only probe / Dry Run.
     """
 
+    def _materials_path(self) -> Path:
+        if not IS_FROZEN:
+            return EXTERNAL_MATERIALS_JSON
+
+        # First launch: make the embedded database available beside the EXE so
+        # the offline PC can later replace/update data/materials.json directly.
+        if not EXTERNAL_MATERIALS_JSON.exists():
+            EXTERNAL_MATERIALS_JSON.parent.mkdir(parents=True, exist_ok=True)
+            if BUNDLED_MATERIALS_JSON.exists():
+                EXTERNAL_MATERIALS_JSON.write_bytes(BUNDLED_MATERIALS_JSON.read_bytes())
+
+        if EXTERNAL_MATERIALS_JSON.exists():
+            return EXTERNAL_MATERIALS_JSON
+        return BUNDLED_MATERIALS_JSON
+
     def _read_database(self) -> dict:
-        with MATERIALS_JSON.open("r", encoding="utf-8") as handle:
+        path = self._materials_path()
+        with path.open("r", encoding="utf-8") as handle:
             return json.load(handle)
 
     def get_materials(self):
-        payload = self._read_database()
-        return payload
+        return self._read_database()
+
+    def get_runtime_info(self):
+        path = self._materials_path()
+        return {
+            "frozen": IS_FROZEN,
+            "app_dir": str(APP_DIR),
+            "materials_path": str(path),
+            "materials_exists": path.exists(),
+        }
 
     def apply_material_dry_run(self, material_id: str, target: str, solver: str):
         payload = self._read_database()
@@ -77,11 +111,7 @@ class MaterialToolboxApi:
         }
 
     def probe_hypermesh_external(self):
-        """Read-only compatibility probe from the pywebview Python process.
-
-        This intentionally does not call hm.Model() and does not modify a model.
-        It only checks whether the external Python environment can see/import hm.
-        """
+        """Read-only compatibility probe from the pywebview Python process."""
         try:
             spec = importlib.util.find_spec("hm")
         except Exception as exc:
@@ -95,8 +125,7 @@ class MaterialToolboxApi:
                 "available": False,
                 "message": (
                     "pywebview 目前使用的 Python 找不到 hm module。"
-                    " 這很常見，代表 Desktop Python 與 HyperMesh 內建 Python 是兩個環境；"
-                    " 下一步應測 HyperMesh 內部 probe，而不是硬接。"
+                    " 這通常代表 Desktop Python 與 HyperMesh 內建 Python 是兩個環境。"
                 ),
             }
 
@@ -109,7 +138,7 @@ class MaterialToolboxApi:
                 "message": (
                     "pywebview Python 可以 import hm。"
                     f" module={module_path}。"
-                    " 這一步沒有建立 hm.Model()、沒有改任何模型。"
+                    " 這一步沒有建立 hm.Model()、沒有修改任何模型。"
                 ),
             }
         except Exception as exc:
@@ -119,21 +148,18 @@ class MaterialToolboxApi:
             }
 
     def read_hm_internal_probe(self):
-        """Read result produced by hm_internal_probe.py inside HyperMesh."""
         if not HM_PROBE_RESULT.exists():
             return {
                 "ok": False,
                 "message": (
-                    "還沒有 hm_probe_result.json。"
-                    " 請在支援的 HyperMesh 環境中執行同資料夾的 hm_internal_probe.py；"
-                    " 它只測 import hm + hm.Model()，不修改模型。"
+                    "EXE 同資料夾目前沒有 hm_probe_result.json。"
+                    " Internal probe 尚未執行或尚未把結果放回此資料夾。"
                 ),
             }
 
         try:
             with HM_PROBE_RESULT.open("r", encoding="utf-8") as handle:
-                result = json.load(handle)
-            return result
+                return json.load(handle)
         except Exception as exc:
             return {
                 "ok": False,
@@ -141,10 +167,11 @@ class MaterialToolboxApi:
             }
 
     def open_database_folder(self):
-        folder = str(MATERIALS_JSON.parent)
+        folder = self._materials_path().parent
+        folder.mkdir(parents=True, exist_ok=True)
 
         if sys.platform.startswith("win"):
-            os.startfile(folder)  # type: ignore[attr-defined]
+            os.startfile(str(folder))  # type: ignore[attr-defined]
         elif sys.platform == "darwin":
             os.system(f'open "{folder}"')
         else:
@@ -155,14 +182,15 @@ class MaterialToolboxApi:
 
 if __name__ == "__main__":
     api = MaterialToolboxApi()
+    ui_path = BUNDLE_ROOT / "index.html" if IS_FROZEN else DEV_ROOT / "index.html"
 
     webview.create_window(
         "CAE Material Toolbox · Material Library + Density Tuner",
-        url=str(ROOT / "index.html"),
+        url=str(ui_path),
         js_api=api,
         width=1500,
         height=920,
         min_size=(1120, 720),
     )
 
-    webview.start(debug=True)
+    webview.start(debug=not IS_FROZEN)
