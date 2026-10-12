@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CAE Material Desktop Prototype</title>
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">CAE</div>
+        <div>
+          <strong>Material Toolbox</strong>
+          <small>pywebview prototype</small>
+        </div>
+      </div>
+
+      <nav>
+        <button class="nav active" data-page="materials"><span>▤</span>Material Library</button>
+        <button class="nav" data-page="density"><span>◇</span>Density Tuner</button>
+      </nav>
+
+      <div class="sidebar-note">
+        <div class="dot"></div>
+        <div>
+          <b id="runtime-name">Browser Preview</b>
+          <small id="runtime-detail">Python bridge not connected</small>
+        </div>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">CAE MATERIAL WORKSPACE</div>
+          <h1 id="page-title">Material Library</h1>
+        </div>
+        <div class="top-actions">
+          <span class="mode-pill" id="mode-pill">Web preview</span>
+          <button id="reload-db" class="secondary">Reload database</button>
+        </div>
+      </header>
+
+      <section class="page active" id="page-materials">
+        <div class="page-intro">
+          <div>
+            <span class="eyebrow green">MATERIAL LIBRARY · DESKTOP MODE</span>
+            <h2>查材料之外，還能把材料直接帶進後續 CAE 工作</h2>
+            <p>資料來源仍是你現在的 <b>src/data/materials.json</b>。這個 Prototype 不建立第二套資料庫；pywebview 只是把既有材料庫變成桌面工作台。</p>
+          </div>
+          <span class="safe-pill">POC：Apply to HyperMesh 仍是 Dry Run</span>
+        </div>
+
+        <div class="material-layout">
+          <section class="panel browser-panel">
+            <div class="panel-head">
+              <div>
+                <span class="step-tag">1</span>
+                <h3>找材料</h3>
+              </div>
+              <span id="material-count" class="muted">Loading…</span>
+            </div>
+
+            <div class="filters">
+              <input id="material-search" type="search" placeholder="搜尋材料名稱 / Source…">
+              <select id="category-filter"><option value="">All categories</option></select>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Material</th>
+                    <th>Type</th>
+                    <th>ρ (t/mm³)</th>
+                    <th>E (MPa)</th>
+                    <th>PR</th>
+                    <th>H</th>
+                  </tr>
+                </thead>
+                <tbody id="material-rows"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel detail-panel">
+            <div class="panel-head">
+              <div>
+                <span class="step-tag">2</span>
+                <h3>材料詳細資料</h3>
+              </div>
+              <span class="source-pill" id="detail-source">—</span>
+            </div>
+
+            <div class="material-title">
+              <div>
+                <span id="detail-category">—</span>
+                <h2 id="detail-name">請先選擇材料</h2>
+              </div>
+              <button id="send-to-density" class="secondary">送到 Density Tuner →</button>
+            </div>
+
+            <div class="property-grid">
+              <div><span>Density</span><b id="detail-density">—</b><small>t/mm³</small></div>
+              <div><span>Young's Modulus</span><b id="detail-e">—</b><small>MPa</small></div>
+              <div><span>Poisson Ratio</span><b id="detail-pr">—</b><small>—</small></div>
+              <div><span>Yield Stress</span><b id="detail-yield">—</b><small>MPa</small></div>
+              <div><span>OptiStruct H</span><b id="detail-h">—</b><small>MPa</small></div>
+              <div><span>LS-DYNA ETAN</span><b id="detail-etan">—</b><small>MPa</small></div>
+            </div>
+
+            <div class="solver-note">
+              <div>
+                <span>OptiStruct</span>
+                <b>H = stored hardening parameter</b>
+              </div>
+              <div class="arrow">→</div>
+              <div>
+                <span>LS-DYNA MAT_003</span>
+                <b>ETAN = E × H / (E + H)</b>
+              </div>
+            </div>
+
+            <div class="notes-box">
+              <span>Notes</span>
+              <p id="detail-notes">—</p>
+            </div>
+          </section>
+
+          <section class="panel action-panel">
+            <div class="panel-head">
+              <div>
+                <span class="step-tag">3</span>
+                <h3>Desktop 動作</h3>
+              </div>
+              <span class="desktop-badge">pywebview</span>
+            </div>
+
+            <label>
+              <span>Solver target</span>
+              <select id="solver-target">
+                <option>HyperMesh / OptiStruct</option>
+                <option>HyperMesh / LS-DYNA</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Target Component / Material</span>
+              <input id="target-entity" placeholder="例如：DUMMY_BLOCK / MAT_23">
+            </label>
+
+            <div class="action-summary">
+              <span>即將套用</span>
+              <b id="action-material-name">尚未選擇材料</b>
+              <small id="action-material-density">—</small>
+            </div>
+
+            <button id="apply-material" class="primary">Apply to HyperMesh · Dry Run</button>
+            <button id="open-db-folder" class="secondary full">Open material database folder</button>
+
+            <div id="material-action-status" class="status-box">
+              Browser preview 可以看 UI；真正的本機資料夾與 Python bridge 要用 desktop.py 開啟。
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="page" id="page-density">
+        <div class="page-intro">
+          <div>
+            <span class="eyebrow purple">DENSITY TUNER · DESKTOP MODE</span>
+            <h2>從 Material Library 選材料，再用目標重量反推新密度</h2>
+            <p>這裡沿用你現有 Density Tuner 的公式與單位換算。差別是 Desktop 版可以把計算結果帶回 HyperMesh 的 Material / Component workflow。</p>
+          </div>
+          <span class="safe-pill purple-safe">計算是真的 · HyperMesh 套用仍是 Dry Run</span>
+        </div>
+
+        <div class="density-layout">
+          <section class="panel">
+            <div class="panel-head">
+              <div><span class="step-tag purple-tag">1</span><h3>材料與重量條件</h3></div>
+            </div>
+
+            <div class="selected-material-card">
+              <span>Selected material</span>
+              <b id="density-material-name">—</b>
+              <small id="density-material-meta">從 Material Library 選一筆材料</small>
+            </div>
+
+            <div class="form-grid">
+              <label>
+                <span>Current Density</span>
+                <input id="density-current" value="8.565E-10">
+              </label>
+              <label>
+                <span>Quantity</span>
+                <input id="density-quantity" value="1">
+              </label>
+              <label>
+                <span>Current Mass</span>
+                <div class="input-unit">
+                  <input id="density-current-mass" value="6.02E-5">
+                  <select id="density-current-unit">
+                    <option>ton</option>
+                    <option>kg</option>
+                    <option>g</option>
+                  </select>
+                </div>
+              </label>
+              <label>
+                <span>Target Mass</span>
+                <div class="input-unit">
+                  <input id="density-target-mass" value="3.13">
+                  <select id="density-target-unit">
+                    <option>kg</option>
+                    <option>ton</option>
+                    <option>g</option>
+                  </select>
+                </div>
+              </label>
+            </div>
+
+            <button id="recalculate" class="primary purple-btn">重新計算</button>
+          </section>
+
+          <section class="panel result-panel">
+            <div class="panel-head">
+              <div><span class="step-tag purple-tag">2</span><h3>計算結果</h3></div>
+            </div>
+
+            <div class="hero-result">
+              <span>Recommended Density</span>
+              <b id="density-result">—</b>
+              <small>New Density</small>
+            </div>
+
+            <div class="result-line"><span>Scale Factor</span><b id="density-scale">—</b></div>
+            <div class="result-line"><span>Expected Mass</span><b id="density-expected">—</b></div>
+            <div class="result-line"><span>Total Target</span><b id="density-total">—</b></div>
+
+            <div class="formula">
+              <span>Formula</span>
+              <b>New ρ = Current ρ × (Target Mass × Qty) / Current Mass</b>
+            </div>
+          </section>
+
+          <section class="panel action-panel">
+            <div class="panel-head">
+              <div><span class="step-tag purple-tag">3</span><h3>套用至模型</h3></div>
+              <span class="desktop-badge purple-badge">Desktop</span>
+            </div>
+
+            <label>
+              <span>Target Component / Material</span>
+              <input id="density-target-entity" placeholder="例如：DUMMY_BLOCK / MAT_23">
+            </label>
+
+            <div class="before-after">
+              <div><span>Current ρ</span><b id="density-before">—</b></div>
+              <div class="arrow">→</div>
+              <div><span>New ρ</span><b id="density-after">—</b></div>
+            </div>
+
+            <button id="apply-density" class="primary purple-btn">Apply Density to HyperMesh · Dry Run</button>
+            <button id="back-materials" class="secondary full">← Back to Material Library</button>
+
+            <div id="density-action-status" class="status-box">
+              目前只建立 Action Plan，不修改 HyperMesh。
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
