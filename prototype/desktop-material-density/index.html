@@ -40,6 +40,7 @@
         </div>
         <div class="top-actions">
           <span class="mode-pill" id="mode-pill">Web preview</span>
+          <button id="probe-hm" class="secondary">Check HyperMesh API</button>
           <button id="reload-db" class="secondary">Reload database</button>
         </div>
       </header>
@@ -158,7 +159,14 @@
               <small id="action-material-density">—</small>
             </div>
 
+            <div class="integration-box">
+              <span>HyperMesh integration</span>
+              <b id="hm-probe-status">Not checked</b>
+              <small id="hm-probe-detail">先檢查 pywebview 的 Python 是否看得到 hm module；不會修改模型。</small>
+            </div>
+
             <button id="apply-material" class="primary">Apply to HyperMesh · Dry Run</button>
+            <button id="read-hm-internal-probe" class="secondary full">Read HyperMesh Internal Probe Result</button>
             <button id="open-db-folder" class="secondary full">Open material database folder</button>
 
             <div id="material-action-status" class="status-box">
