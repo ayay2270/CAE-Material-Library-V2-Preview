@@ -1,0 +1,78 @@
+name: Build Material Toolbox EXE
+
+on:
+  push:
+    branches:
+      - prototype/pywebview-material-density
+    paths:
+      - "prototype/desktop-material-density/**"
+      - "src/data/materials.json"
+      - ".github/workflows/build-material-toolbox-exe.yml"
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout prototype branch
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pywebview pyinstaller
+
+      - name: Validate Python source
+        shell: pwsh
+        run: |
+          python -m py_compile prototype/desktop-material-density/desktop.py
+
+      - name: Build single EXE
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed --name "CAE-Material-Toolbox" --add-data "prototype/desktop-material-density/index.html;." --add-data "prototype/desktop-material-density/styles.css;." --add-data "prototype/desktop-material-density/app.js;." --add-data "src/data/materials.json;data" prototype/desktop-material-density/desktop.py
+
+      - name: Assemble offline package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path package | Out-Null
+          New-Item -ItemType Directory -Force -Path package/data | Out-Null
+          Copy-Item dist/CAE-Material-Toolbox.exe package/CAE-Material-Toolbox.exe
+          Copy-Item src/data/materials.json package/data/materials.json
+          Copy-Item prototype/desktop-material-density/hm_internal_probe.py package/hm_internal_probe.py
+          @"
+          CAE Material Toolbox
+          Branch: prototype/pywebview-material-density
+          Build: $env:GITHUB_SHA
+
+          Usage:
+          1. Extract the whole ZIP on the offline Windows PC.
+          2. Double-click CAE-Material-Toolbox.exe.
+          3. Material Library and Density Tuner work fully offline.
+          4. data/materials.json is the editable offline database copy.
+          5. HyperMesh actions remain read-only probe / Dry Run.
+          "@ | Set-Content -Encoding UTF8 package/README.txt
+
+      - name: Verify package
+        shell: pwsh
+        run: |
+          if (!(Test-Path package/CAE-Material-Toolbox.exe)) { throw "EXE missing" }
+          if (!(Test-Path package/data/materials.json)) { throw "materials.json missing" }
+          Get-Item package/CAE-Material-Toolbox.exe | Select-Object Name,Length
+          Get-FileHash package/CAE-Material-Toolbox.exe -Algorithm SHA256
+
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: CAE-Material-Toolbox-Windows
+          path: package/
+          if-no-files-found: error
+          retention-days: 14
