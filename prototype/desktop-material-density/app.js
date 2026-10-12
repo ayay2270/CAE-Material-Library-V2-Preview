@@ -312,6 +312,49 @@
     }
   });
 
+  document.getElementById('probe-hm').addEventListener('click', async () => {
+    const status = document.getElementById('hm-probe-status');
+    const detail = document.getElementById('hm-probe-detail');
+
+    if (!bridgeAvailable()) {
+      status.textContent = 'Desktop mode required';
+      detail.textContent = 'Browser Preview 無法檢查本機 Python / HyperMesh module。';
+      return;
+    }
+
+    status.textContent = 'Checking…';
+    detail.textContent = '只做 import / module probe，不建立或修改 HyperMesh entity。';
+
+    try {
+      const result = await window.pywebview.api.probe_hypermesh_external();
+      status.textContent = result.available ? 'hm module found' : 'hm module not found';
+      detail.textContent = result.message || 'Probe finished.';
+    } catch (error) {
+      status.textContent = 'Probe failed';
+      detail.textContent = String(error);
+    }
+  });
+
+  document.getElementById('read-hm-internal-probe').addEventListener('click', async () => {
+    const status = document.getElementById('hm-probe-status');
+    const detail = document.getElementById('hm-probe-detail');
+
+    if (!bridgeAvailable()) {
+      status.textContent = 'Desktop mode required';
+      detail.textContent = '請用 desktop.py 啟動後再讀取 HyperMesh internal probe 結果。';
+      return;
+    }
+
+    try {
+      const result = await window.pywebview.api.read_hm_internal_probe();
+      status.textContent = result.ok ? 'Internal hm.Model() OK' : 'No successful internal probe yet';
+      detail.textContent = result.message || '';
+    } catch (error) {
+      status.textContent = 'Read failed';
+      detail.textContent = String(error);
+    }
+  });
+
   document.getElementById('open-db-folder').addEventListener('click', async () => {
     const status = document.getElementById('material-action-status');
     if (!bridgeAvailable()) {
