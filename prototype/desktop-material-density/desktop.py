@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import sys
@@ -11,6 +12,7 @@ import webview
 ROOT = Path(__file__).resolve().parent
 REPO_ROOT = ROOT.parent.parent
 MATERIALS_JSON = REPO_ROOT / "src" / "data" / "materials.json"
+HM_PROBE_RESULT = ROOT / "hm_probe_result.json"
 
 
 class MaterialToolboxApi:
@@ -73,6 +75,70 @@ class MaterialToolboxApi:
                 " 目前只建立 Action Plan，HyperMesh 模型沒有被修改。"
             ),
         }
+
+    def probe_hypermesh_external(self):
+        """Read-only compatibility probe from the pywebview Python process.
+
+        This intentionally does not call hm.Model() and does not modify a model.
+        It only checks whether the external Python environment can see/import hm.
+        """
+        try:
+            spec = importlib.util.find_spec("hm")
+        except Exception as exc:
+            return {
+                "available": False,
+                "message": f"Unable to inspect hm module: {exc}",
+            }
+
+        if spec is None:
+            return {
+                "available": False,
+                "message": (
+                    "pywebview 目前使用的 Python 找不到 hm module。"
+                    " 這很常見，代表 Desktop Python 與 HyperMesh 內建 Python 是兩個環境；"
+                    " 下一步應測 HyperMesh 內部 probe，而不是硬接。"
+                ),
+            }
+
+        try:
+            import hm  # type: ignore
+
+            module_path = getattr(hm, "__file__", None) or "(built-in / unknown path)"
+            return {
+                "available": True,
+                "message": (
+                    "pywebview Python 可以 import hm。"
+                    f" module={module_path}。"
+                    " 這一步沒有建立 hm.Model()、沒有改任何模型。"
+                ),
+            }
+        except Exception as exc:
+            return {
+                "available": False,
+                "message": f"找到 hm module 但 import 失敗：{exc}",
+            }
+
+    def read_hm_internal_probe(self):
+        """Read result produced by hm_internal_probe.py inside HyperMesh."""
+        if not HM_PROBE_RESULT.exists():
+            return {
+                "ok": False,
+                "message": (
+                    "還沒有 hm_probe_result.json。"
+                    " 請在支援的 HyperMesh 環境中執行同資料夾的 hm_internal_probe.py；"
+                    " 它只測 import hm + hm.Model()，不修改模型。"
+                ),
+            }
+
+        try:
+            with HM_PROBE_RESULT.open("r", encoding="utf-8") as handle:
+                result = json.load(handle)
+            return result
+        except Exception as exc:
+            return {
+                "ok": False,
+                "message": f"無法讀取 internal probe 結果：{exc}",
+            }
 
     def open_database_folder(self):
         folder = str(MATERIALS_JSON.parent)
